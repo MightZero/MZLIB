@@ -22,9 +22,9 @@ namespace MZLIB
     class Matrix
     {
     public:
-        using value_type = _T;
-        using reference = value_type &;
-        using pointer = value_type *;
+        using element_type = _T;
+        using reference = element_type &;
+        using pointer = element_type *;
         using dpointer = pointer *;
         Matrix(size_t H, size_t W) : _H(H), _W(W) { allocate(); }
         ~Matrix() { free(); }
@@ -38,7 +38,7 @@ namespace MZLIB
         {
             other.mat = nullptr, other._H = 0, other._W = 0;
         }
-        Matrix(std::initializer_list<std::initializer_list<value_type>> _ls)
+        Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
         {
             _H = _ls.size(), _W = (*_ls.begin()).size();
             allocate();
@@ -132,7 +132,7 @@ namespace MZLIB
         {
             mat = new pointer[_H];
             for (size_t i = 0; i < _H; ++i)
-                mat[i] = new value_type[_W]{};
+                mat[i] = new element_type[_W]{};
         }
     };
     template <typename _T>
@@ -165,9 +165,9 @@ namespace MZLIB
     class Static_Matrix
     {
     public:
-        using value_type = _T;
-        using reference = value_type &;
-        using pointer = value_type *;
+        using element_type = _T;
+        using reference = element_type &;
+        using pointer = element_type *;
         using dpointer = pointer *;
         Static_Matrix() { allocate(); }
         ~Static_Matrix() { free(); }
@@ -181,7 +181,7 @@ namespace MZLIB
         {
             other.mat = nullptr;
         }
-        Static_Matrix(std::initializer_list<value_type> _ls)
+        Static_Matrix(std::initializer_list<element_type> _ls)
         {
             if (_ls.size() != size())
                 throw std::length_error("invalid initializer list size");
@@ -193,7 +193,7 @@ namespace MZLIB
                 ++_nW == _W ? _nW = 0, ++_nH : 0;
             }
         }
-        Static_Matrix(std::initializer_list<std::initializer_list<value_type>> _ls)
+        Static_Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
         {
             if (_ls.size() != _H)
                 throw std::length_error("invalid initializer list size");
@@ -286,7 +286,7 @@ namespace MZLIB
         {
             mat = new pointer[_H];
             for (size_t i = 0; i < _H; ++i)
-                mat[i] = new value_type[_W]{};
+                mat[i] = new element_type[_W]{};
         }
     };
     template <size_t _Hx, size_t _HW, size_t _Wy, typename _T>
