@@ -14,13 +14,12 @@ namespace MZLIB
     template <size_t _MOD, typename _T = long>
     class ModInt
     {
-        _T val;
-
     public:
+        using value_type = _T;
         ModInt() : val(0) {}
-        ModInt(_T _val) : val(_val % _MOD) {}
-        inline const _T getval() const { return val % _MOD; }
-        inline operator _T() const { return getval(); }
+        ModInt(value_type _val) : val(_val % _MOD) {}
+        inline const value_type getval() const { return val % _MOD; }
+        inline operator value_type() const { return getval(); }
     };
     template <typename _T>
     inline _T modinv(_T a, size_t m)
@@ -41,6 +40,9 @@ namespace MZLIB
         if (a != 1)
             throw std::domain_error("inverse does not exist");
         return x1;
+
+    private:
+        value_type val;
     }
     template <size_t _MOD, typename _T>
     inline ModInt<_MOD, _T> operator+(const ModInt<_MOD, _T> &x, const ModInt<_MOD, _T> &y)
