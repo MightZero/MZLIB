@@ -37,10 +37,8 @@ namespace MZLIB
         static void ntt(std::vector<long>& _poly,int _way)
         {
             size_t n=_poly.size();
-            for(size_t i=0;i<n;++i)if(i<rev[i])
-            {
-                std::swap(_poly[i],_poly[rev[i]]);
-            }
+            if(rev.size()!=n)init(n);
+            for(size_t i=0;i<n;++i)if(i<rev[i])std::swap(_poly[i],_poly[rev[i]]);
             for(size_t m=2;m<=n;m<<=1)
             {
                 auto mid=m>>1;
@@ -50,11 +48,8 @@ namespace MZLIB
                     long w=1;
                     for(size_t k=0;k<mid;++k)
                     {
-                        long x=_poly[j+k];
-                        long y=w*_poly[j+k+mid]%_M;
-                        _poly[j+k]=(x+y)%_M;
-                        _poly[j+k+mid]=(x-y+_M)%_M;
-                        w=w*wn%_M;
+                        long x=_poly[j+k],y=w*_poly[j+k+mid]%_M;
+                        _poly[j+k]=(x+y)%_M,_poly[j+k+mid]=(x-y+_M)%_M,w=w*wn%_M;
                     }
                 }
             }
@@ -67,7 +62,7 @@ namespace MZLIB
         static void init(size_t n)
         {
             rev.assign(n,0);
-            for (size_t i = 0; i < n; ++i) rev[i] = (rev[i >> 1] >> 1) | ((i & 1) << (63-__builtin_clzll(n)) - 1);
+            for(size_t i=0;i<n;++i)rev[i]=(rev[i>>1]>>1)|((i&1)<<(63-__builtin_clzll(n))-1);
         }
     };
     std::vector<long> NTT::rev=std::vector<long>(0);
@@ -116,7 +111,7 @@ namespace MZLIB
         inline const int& flag() const {return _flag;}
         inline std::vector<element_type>& vec(){return _dat;} 
         inline const std::vector<element_type>& vec()const{return _dat;} 
-        inline operator std::string()
+        inline operator std::string() const
         {
             std::string _str="";
             for(auto it=_dat.begin();it!=_dat.end();++it)
@@ -148,17 +143,14 @@ namespace MZLIB
         {
             if(_lsh.flag()!=_rsh.flag())return _lsh.flag()>_rsh.flag()?1:-1;
             if(_lsh.vec().size()!=_rsh.vec().size())return _lsh.flag()*(_lsh.vec().size()>_rsh.vec().size()?1:-1);
-            for(auto itl=_lsh.vec().begin(),itr=_rsh.vec().begin();itl!=_lsh.vec().end();++itl,++itr)
-            {
-                if(*itl!=*itr)return _lsh.flag()*(*itl>*itr?1:-1);
-                ++itl,++itr;
-            }
+            int p=0;
+            for(auto itl=_lsh.vec().begin(),itr=_rsh.vec().begin();itl!=_lsh.vec().end();++itl,++itr)if(*itl!=*itr)return _lsh.flag()*(*itl>*itr?1:-1);
             return 0;
         }
+        inline friend bool operator==(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)==0;}
     #if __cplusplus>=202002L
         inline friend int operator<=>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh);}
     #else
-        inline friend bool operator==(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)==0;}
         inline friend bool operator!=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)!=0;}
         inline friend bool operator<(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)<0;}
         inline friend bool operator>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)>0;}
@@ -220,7 +212,6 @@ namespace MZLIB
             size_t n=1;
             while(n<vl.size()+vr.size())n<<=1;
             vl.resize(n),vr.resize(n);
-            NTT::init(n);
             NTT::ntt(vl,1),NTT::ntt(vr,1);
             for(size_t i=0;i<n;++i)vl[i]=vl[i]*vr[i]%NTT::_M;
             NTT::ntt(vl,-1);
