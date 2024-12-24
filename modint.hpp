@@ -17,9 +17,9 @@ namespace MZLIB
     public:
         using value_type = _T;
         ModInt() : val(0) {}
-        explicit ModInt(value_type _val) : val(_val % _MOD) {}
-        inline const value_type getval() const { return val % _MOD; }
-        inline operator value_type() const { return getval(); }
+        ModInt(value_type _val) : val(_val % _MOD) {}
+        inline const value_type getval() const noexcept { return val % _MOD; }
+        inline operator value_type() const noexcept { return getval(); }
         inline ModInt& operator+=(const ModInt& x){return (*this)=(*this)+x;}
         inline ModInt& operator-=(const ModInt& x){return (*this)=(*this)-x;}
         inline ModInt& operator*=(const ModInt& x){return (*this)=(*this)*x;}
