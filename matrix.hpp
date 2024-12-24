@@ -48,9 +48,9 @@ namespace MZLIB
         inline constexpr size_t getW() const noexcept { return _W; }
         inline constexpr size_t size() const noexcept { return _H * _W; }
 
-        Matrix operator+=(const Matrix &x) { return (*this) = (*this) + x; }
-        Matrix operator*=(const Matrix &x) { return (*this) = (*this) * x; }
-        Matrix operator*=(_T x) { return (*this) = (*this) * x; }
+        Matrix& operator+=(const Matrix &x) { return (*this) = (*this) + x; }
+        Matrix& operator*=(const Matrix &x) { return (*this) = (*this) * x; }
+        Matrix& operator*=(_T x) { return (*this) = (*this) * x; }
 
         using iterator = typename std::vector<element_type>::iterator;
         using const_iterator = typename std::vector<element_type>::const_iterator;
