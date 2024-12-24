@@ -2,133 +2,96 @@
 
 ## Overview
 
-`matrix.hpp` provides a matrix class library designed to handle basic operations on two-dimensional matrices, including both dynamic and static matrix types. It supports operations like matrix construction, assignment, addition, multiplication, iterator traversal, and initialization with lists. The library works with different data types for matrices, defaulting to `int`.
+`matrix.hpp` provides a matrix class library for handling basic operations on two-dimensional matrices. It supports matrix construction, assignment, addition, multiplication, iterator traversal, and initialization lists. This library is suitable for matrices of various data types, with `int` being the default type.
 
-## Key Components
+## Main Components
 
 ### 1. `Matrix` Class
-`Matrix` is a dynamic-sized matrix class that supports dynamic memory allocation and deallocation. A matrix is created by specifying the number of rows and columns, and it can also be initialized using an initializer list.
+The `Matrix` class is a dynamically sized matrix that supports dynamic memory allocation and deallocation. Users can create a matrix by specifying the number of rows and columns, and it also supports initializing matrix elements using an initialization list.
 
 #### Member Type Definitions
 
-- `value_type`: The type of matrix elements.
-- `reference`: The reference type for matrix elements.
-- `pointer`: The pointer type for matrix elements.
-- `dpointer`: A pointer to a pointer type, used to represent a 2D matrix.
+- `element_type`: The type of matrix elements.
+- `reference`: Reference type to matrix elements.
+- `const_reference`: Constant reference type to matrix elements.
+- `pointer`: Pointer type to matrix elements.
+- `const_pointer`: Constant pointer type to matrix elements.
 
-#### Constructors and Destructor
+#### Constructors
 
-- `Matrix(size_t H, size_t W)`: Creates a matrix with the specified number of rows (`H`) and columns (`W`).
-- `~Matrix()`: Destructor that frees the matrix memory.
-- `Matrix(const Matrix &other)`: Copy constructor that creates a matrix identical to another.
-- `Matrix(Matrix &&other) noexcept`: Move constructor that transfers ownership of the matrix.
-- `Matrix(std::initializer_list<std::initializer_list<value_type>> _ls)`: Constructs a matrix using a nested initializer list.
-
-#### Operator Overloads
-
-- `Matrix& operator=(const Matrix& other)`: Assignment operator that performs a deep copy.
-- `Matrix& operator=(Matrix&& other) noexcept`: Move assignment operator that transfers resources from one matrix to another.
-- `operator dpointer() noexcept`: Returns the matrix pointer for other operations.
+- `Matrix()`: Default constructor, creates an empty matrix (0x0).
+- `Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept`: Creates a matrix with specified number of rows (`H`) and columns (`W`), initializing all elements with the given value (`x`).
+- `Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)`: Creates a matrix using nested initialization lists.
 
 #### Access Methods
 
-- `reference getVal(const size_t &x, const size_t &y)`: Returns a reference to the matrix element at position `(x, y)`.
-- `const reference getVal(const size_t &x, const size_t &y) const`: Returns a constant reference to the matrix element at position `(x, y)`.
+- `inline typename std::vector<element_type>::iterator operator[](size_t x)`: Returns an iterator to the beginning of row `x`.
+- `inline typename std::vector<element_type>::const_iterator operator[](size_t x) const`: Returns a constant iterator to the beginning of row `x`.
+- `inline constexpr size_t getH() const noexcept`: Returns the number of rows in the matrix.
+- `inline constexpr size_t getW() const noexcept`: Returns the number of columns in the matrix.
+- `inline constexpr size_t size() const noexcept`: Returns the total number of elements in the matrix (rows * columns).
 
 #### Helper Methods
 
-- `size_t getH() const`: Returns the number of rows in the matrix.
-- `size_t getW() const`: Returns the number of columns in the matrix.
-- `size_t size() const`: Returns the total number of elements in the matrix (rows * columns).
+- `Matrix& operator+=(const Matrix& x)`: Addition assignment operator for matrices.
+- `Matrix& operator*=(const Matrix& x)`: Multiplication assignment operator for matrices.
+- `Matrix& operator*=(_T x)`: Scalar multiplication assignment operator for matrices.
 
-#### Iterator
+#### Iterators
 
-- `iterator begin() noexcept`: Returns the beginning iterator for the matrix.
-- `iterator end() noexcept`: Returns the end iterator for the matrix.
+- `iterator begin() noexcept`: Returns an iterator to the beginning of the matrix.
+- `iterator end() noexcept`: Returns an iterator to the end of the matrix.
+- `const_iterator begin() const noexcept`: Returns a constant iterator to the beginning of the matrix.
+- `const_iterator end() const noexcept`: Returns a constant iterator to the end of the matrix.
+- `reverse_iterator rbegin() noexcept`: Returns a reverse iterator to the beginning of the matrix.
+- `reverse_iterator rend() noexcept`: Returns a reverse iterator to the end of the matrix.
+- `const_reverse_iterator rbegin() const noexcept`: Returns a constant reverse iterator to the beginning of the matrix.
+- `const_reverse_iterator rend() const noexcept`: Returns a constant reverse iterator to the end of the matrix.
+- `const_reverse_iterator crbegin() const noexcept`: Returns a constant reverse iterator to the beginning of the matrix.
+- `const_reverse_iterator crend() const noexcept`: Returns a constant reverse iterator to the end of the matrix.
 
-### 2. `Static_Matrix` Class
-`Static_Matrix` is a fixed-size matrix class where the number of rows and columns is determined at compile-time. It provides similar functionality as the `Matrix` class but does not support dynamic resizing.
-
-#### Constructors and Destructor
-
-- `Static_Matrix()`: Default constructor that creates a fixed-size matrix.
-- `~Static_Matrix()`: Destructor that frees the matrix memory.
-- `Static_Matrix(const Static_Matrix &other)`: Copy constructor.
-- `Static_Matrix(Static_Matrix &&other) noexcept`: Move constructor.
-- `Static_Matrix(std::initializer_list<value_type> _ls)`: Initializes the matrix from a flat initializer list.
-
-#### Operator Overloads
-
-- `Static_Matrix& operator=(const Static_Matrix& other)`: Assignment operator that performs a deep copy.
-- `Static_Matrix& operator=(Static_Matrix&& other) noexcept`: Move assignment operator that transfers resources from one matrix to another.
-- `operator dpointer() noexcept`: Returns the matrix pointer for other operations.
-
-#### Access Methods
-
-- `reference getVal(const size_t &x, const size_t &y)`: Returns a reference to the matrix element at position `(x, y)`.
-- `const reference getVal(const size_t &x, const size_t &y) const`: Returns a constant reference to the matrix element at position `(x, y)`.
-
-#### Helper Methods
-
-- `size_t getH() const`: Returns the number of rows in the matrix.
-- `size_t getW() const`: Returns the number of columns in the matrix.
-- `size_t size() const`: Returns the total number of elements in the matrix.
-
-#### Iterator
-
-- `iterator begin() noexcept`: Returns the beginning iterator for the matrix.
-- `iterator end() noexcept`: Returns the end iterator for the matrix.
-
-### 3. Operator Overloads
+### 2. Operator Overloading
 
 #### Matrix Multiplication
 
-- `operator*`: Matrix multiplication operator that returns the product of two matrices.
+- `operator*`: Matrix multiplication operator, returns the product of two matrices.
 
 ```cpp
 template <typename _T>
 inline Matrix<_T> operator*(const Matrix<_T> &x, const Matrix<_T> &y)
 ```
 
+- `operator*`: Scalar multiplication operator, returns the product of a matrix and a scalar.
+
+```cpp
+template <typename _T>
+inline Matrix<_T> operator*(const Matrix<_T> &x, _T y)
+
+template <typename _T>
+inline Matrix<_T> operator*(_T y, const Matrix<_T> &x)
+```
+
 #### Matrix Addition
 
-- `operator+`: Matrix addition operator that returns the sum of two matrices.
+- `operator+`: Matrix addition operator, returns the sum of two matrices.
 
 ```cpp
 template <typename _T>
 inline Matrix<_T> operator+(const Matrix<_T> &x, const Matrix<_T> &y)
 ```
 
-#### Static Matrix Multiplication
-
-- `operator*`: Operator for multiplying fixed-size matrices.
-
-```cpp
-template <size_t _Hx, size_t _HW, size_t _Wy, typename _T>
-inline Static_Matrix<_Hx, _Wy, _T> operator*(const Static_Matrix<_Hx, _HW, _T> &x, const Static_Matrix<_HW, _Wy, _T> &y)
-```
-
-#### Static Matrix Addition
-
-- `operator+`: Operator for adding fixed-size matrices.
-
-```cpp
-template <size_t _H, size_t _W, typename _T>
-inline Static_Matrix<_H, _W, _T> operator+(const Static_Matrix<_H, _W, _T> &x, const Static_Matrix<_H, _W, _T> &y)
-```
-
-## Example Usage
+## Usage Examples
 
 ### 1. Creating and Initializing Matrices
 
 ```cpp
-// Dynamic Matrix
+// Dynamic matrix
 MZLIB::Matrix<int> mat1(3, 3);  // Create a 3x3 matrix
-mat1.getVal(0, 0) = 1;
-mat1.getVal(0, 1) = 2;
-mat1.getVal(0, 2) = 3;
+mat1[0][0] = 1;
+mat1[0][1] = 2;
+mat1[0][2] = 3;
 
-// Using initializer list to create a matrix
+// Using initialization list to create a matrix
 MZLIB::Matrix<int> mat2 = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
 ```
 
@@ -144,7 +107,14 @@ MZLIB::Matrix<int> mat3 = mat1 + mat2;
 MZLIB::Matrix<int> mat4 = mat1 * mat2;
 ```
 
-### 4. Iterating Through a Matrix
+### 4. Scalar Multiplication
+
+```cpp
+MZLIB::Matrix<int> mat5 = mat1 * 2;
+MZLIB::Matrix<int> mat6 = 2 * mat1;
+```
+
+### 5. Iterator Traversal
 
 ```cpp
 for (auto it = mat1.begin(); it != mat1.end(); ++it)
@@ -153,13 +123,8 @@ for (auto it = mat1.begin(); it != mat1.end(); ++it)
 }
 ```
 
-### 5. Static Matrix
+## Precautions
 
-```cpp
-MZLIB::Static_Matrix<2, 2, int> staticMat = {{1, 2}, {3, 4}};
-```
-
-## Notes
-
-1. When using `getVal`, ensure the provided row and column indices are within the matrix bounds; otherwise, an `std::out_of_range` exception will be thrown.
-2. Matrix addition and multiplication require compatible matrix dimensions; otherwise, an `std::invalid_argument` exception will be thrown.
+1. When using the `operator[]` method, ensure that the provided row and column indices are within the matrix bounds; otherwise, undefined behavior may occur.
+2. Matrix addition and multiplication require compatible dimensions between the matrices involved; otherwise, a `std::invalid_argument` exception will be thrown.
+3. For matrix multiplication, the number of columns in the left matrix must equal the number of rows in the right matrix; otherwise, a `std::invalid_argument` exception will be thrown.

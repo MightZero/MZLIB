@@ -1,3 +1,7 @@
+// FileName : matrix.hpp
+// Matrix Packed Class Header
+// Programmed By MightZero
+// Copyright 2024 MightZero
 #include <utility>
 #include <initializer_list>
 #include <vector>
@@ -21,49 +25,32 @@ namespace MZLIB
         using pointer = element_type *;
         using const_pointer = const element_type *;
 
-        Matrix() : _H(0), _W(0), _dat() {}
-        Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept : _H(H), _W(W)
-        {
-            _dat.assign(size(), x);
-        }
+        Matrix()=default;
+        Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept : _H(H), _W(W) { _dat.assign(size(), x); }
         Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
         {
             if (_ls.size() == 0)
                 throw std::length_error("invalid initializer list size");
             _H = _ls.size(), _W = (*_ls.begin()).size();
             _dat.assign(size(), element_type());
-            size_t _nH = 0, _nW = 0;
+            auto it = this->begin();
             for (auto &_lsh : _ls)
             {
                 if (_lsh.size() != _W)
                     throw std::length_error("invalid initializer list size");
                 for (auto &x : _lsh)
-                    getVal(_nH, _nW) = x, ++_nW == _W ? _nW = 0, ++_nH : 0;
+                    *(it++) = x;
             }
         }
-        inline reference getVal(size_t x, size_t y)
-        {
-            if (x >= _H || y >= _W)
-                throw std::out_of_range("invalid access");
-            return _dat[x * _W + y];
-        }
-        inline const_reference getVal(size_t x, size_t y) const
-        {
-            if (x >= _H || y >= _W)
-                throw std::out_of_range("invalid access");
-            return _dat[x * _W + y];
-        }
-        inline typename std::vector<element_type>::iterator operator[](size_t x)
-        {
-            return _dat.begin() + x * _W;
-        }
-        inline typename std::vector<element_type>::const_iterator operator[](size_t x) const
-        {
-            return _dat.begin() + x * _W;
-        }
+        inline typename std::vector<element_type>::iterator operator[](size_t x) { return _dat.begin() + x * _W; }
+        inline typename std::vector<element_type>::const_iterator operator[](size_t x) const { return _dat.begin() + x * _W; }
         inline constexpr size_t getH() const noexcept { return _H; }
         inline constexpr size_t getW() const noexcept { return _W; }
         inline constexpr size_t size() const noexcept { return _H * _W; }
+
+        Matrix operator+=(const Matrix &x) { return (*this) = (*this) + x; }
+        Matrix operator*=(const Matrix &x) { return (*this) = (*this) * x; }
+        Matrix operator*=(_T x) { return (*this) = (*this) * x; }
 
         using iterator = typename std::vector<element_type>::iterator;
         using const_iterator = typename std::vector<element_type>::const_iterator;
@@ -102,10 +89,19 @@ namespace MZLIB
         for (size_t i = 0; i < _Hx; ++i)
             for (size_t j = 0; j < _Wy; ++j)
                 for (size_t k = 0; k < _HW; ++k)
-                    res.getVal(i, j) = res.getVal(i, j) + x.getVal(i, k) * y.getVal(k, j);
+                    res[i][j] = res[i][j] + x[i][k] * y[k][j];
         return res;
     }
-
+    template <typename _T>
+    inline Matrix<_T> operator*(const Matrix<_T> &x, _T y)
+    {
+        Matrix<_T> res = x;
+        for (auto &val : res)
+            val = val * y;
+        return res;
+    }
+    template <typename _T>
+    inline Matrix<_T> operator*(_T y, const Matrix<_T> &x) { return x * y; }
     template <typename _T>
     inline Matrix<_T> operator+(const Matrix<_T> &x, const Matrix<_T> &y)
     {
@@ -119,7 +115,7 @@ namespace MZLIB
         Matrix<_T> res(_H, _W);
         for (size_t i = 0; i < _H; ++i)
             for (size_t j = 0; j < _W; ++j)
-                res.getVal(i, j) = x.getVal(i, j) + y.getVal(i, j);
+                res[i][j] = x[i][j] + y[i][j];
         return res;
     }
 }
