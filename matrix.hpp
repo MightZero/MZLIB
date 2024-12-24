@@ -24,23 +24,21 @@ namespace MZLIB
         Matrix() : _H(0), _W(0), _dat() {}
         Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept : _H(H), _W(W)
         {
-            _dat.assign(this->size(), x);
+            _dat.assign(size(), x);
         }
         Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
         {
             if (_ls.size() == 0)
-            {
                 throw std::length_error("invalid initializer list size");
-            }
             _H = _ls.size(), _W = (*_ls.begin()).size();
+            _dat.assign(size(), element_type());
             size_t _nH = 0, _nW = 0;
             for (auto &_lsh : _ls)
             {
                 if (_lsh.size() != _W)
                     throw std::length_error("invalid initializer list size");
                 for (auto &x : _lsh)
-                    getVal(_nH, _nW) = x,
-                                ++_nW == _W ? _nW = 0, ++_nH : 0;
+                    getVal(_nH, _nW) = x, ++_nW == _W ? _nW = 0, ++_nH : 0;
             }
         }
         inline reference getVal(size_t x, size_t y)
