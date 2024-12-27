@@ -70,8 +70,7 @@ namespace MZLIB
         inline const_reverse_iterator crbegin() const noexcept { return _dat.crbegin(); }
         inline const_reverse_iterator crend() const noexcept { return _dat.crend(); }
 
-        typename std::enable_if<std::is_convertible<element_type, double>::value, Matrix<element_type>>::type
-        inverse() const
+        inline Matrix<element_type> inverse() const
         {
             if (_H != _W)
                 throw std::invalid_argument("invalid matrix size to compute inverse");
@@ -101,7 +100,7 @@ namespace MZLIB
                         continue;
                     element_type factor = augmented[j][i];
                     for (size_t k = i; k < _W * 2; ++k)
-                        augmented[j][k] -= factor * augmented[i][k];
+                        augmented[j][k] = augmented[j][k] - factor * augmented[i][k];
                 }
             }
             Matrix<element_type> inv(_H, _W);
@@ -112,8 +111,7 @@ namespace MZLIB
             return inv;
         }
 
-        static typename std::enable_if<std::is_convertible<element_type, double>::value, Matrix<element_type>>::type
-        identity(size_t n)
+        inline static Matrix<element_type> identity(size_t n)
         {
             Matrix<element_type> mat(n, n);
             for (size_t i = 0; i < n; ++i)
