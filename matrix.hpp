@@ -25,7 +25,7 @@ namespace MZLIB
         using pointer = element_type *;
         using const_pointer = const element_type *;
 
-        Matrix()=default;
+        Matrix() = default;
         Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept : _H(H), _W(W) { _dat.assign(size(), x); }
         Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
         {
@@ -48,9 +48,9 @@ namespace MZLIB
         inline constexpr size_t getW() const noexcept { return _W; }
         inline constexpr size_t size() const noexcept { return _H * _W; }
 
-        Matrix& operator+=(const Matrix &x) { return (*this) = (*this) + x; }
-        Matrix& operator*=(const Matrix &x) { return (*this) = (*this) * x; }
-        Matrix& operator*=(_T x) { return (*this) = (*this) * x; }
+        Matrix &operator+=(const Matrix &x) { return (*this) = (*this) + x; }
+        Matrix &operator*=(const Matrix &x) { return (*this) = (*this) * x; }
+        Matrix &operator*=(element_type x) { return (*this) = (*this) * x; }
 
         using iterator = typename std::vector<element_type>::iterator;
         using const_iterator = typename std::vector<element_type>::const_iterator;
@@ -69,6 +69,57 @@ namespace MZLIB
         inline const_reverse_iterator rend() const noexcept { return _dat.crend(); }
         inline const_reverse_iterator crbegin() const noexcept { return _dat.crbegin(); }
         inline const_reverse_iterator crend() const noexcept { return _dat.crend(); }
+
+        typename std::enable_if<std::is_convertible<element_type, double>::value, Matrix<element_type>>::type
+        inverse() const
+        {
+            if (_H != _W)
+                throw std::invalid_argument("invalid matrix size to compute inverse");
+            Matrix<element_type> augmented(_H, _W * 2);
+            for (size_t i = 0; i < _H; ++i)
+            {
+                for (size_t j = 0; j < _W; ++j)
+                    augmented[i][j] = _dat[i * _W + j],
+                    augmented[i][j + _W] = (i == j) ? 1 : 0;
+            }
+            for (size_t i = 0; i < _H; ++i)
+            {
+                size_t pivot = i;
+                for (size_t j = i + 1; j < _H; ++j)
+                    if (std::abs(augmented[j][i]) > std::abs(augmented[pivot][i]))
+                        pivot = j;
+                if (pivot != i)
+                    std::swap_ranges(augmented[i], augmented[i] + _W * 2, augmented[pivot]);
+                element_type scale = augmented[i][i];
+                if (std::abs(scale) < 1e-9)
+                    throw std::runtime_error("matrix is singular and cannot be inverted");
+                for (size_t j = i; j < _W * 2; ++j)
+                    augmented[i][j] = augmented[i][j] / scale;
+                for (size_t j = 0; j < _H; ++j)
+                {
+                    if (j == i)
+                        continue;
+                    element_type factor = augmented[j][i];
+                    for (size_t k = i; k < _W * 2; ++k)
+                        augmented[j][k] -= factor * augmented[i][k];
+                }
+            }
+            Matrix<element_type> inv(_H, _W);
+            for (size_t i = 0; i < _H; ++i)
+                for (size_t j = 0; j < _W; ++j)
+                    inv[i][j] = augmented[i][j + _W];
+
+            return inv;
+        }
+
+        static typename std::enable_if<std::is_convertible<element_type, double>::value, Matrix<element_type>>::type
+        identity(size_t n)
+        {
+            Matrix<element_type> mat(n, n);
+            for (size_t i = 0; i < n; ++i)
+                mat[i][i] = element_type(1);
+            return mat;
+        }
 
     private:
         size_t _H, _W;

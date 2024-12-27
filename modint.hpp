@@ -17,13 +17,24 @@ namespace MZLIB
     public:
         using value_type = _T;
         ModInt() : val(0) {}
-        ModInt(value_type _val) : val(_val % _MOD) {}
-        inline const value_type getval() const noexcept { return val % _MOD; }
+        ModInt(value_type _val) : val((_val + _MOD) % _MOD) {}
+        inline const value_type getval() const noexcept { return (val + _MOD) % _MOD; }
         inline operator value_type() const noexcept { return getval(); }
-        inline ModInt& operator+=(const ModInt& x){return (*this)=(*this)+x;}
-        inline ModInt& operator-=(const ModInt& x){return (*this)=(*this)-x;}
-        inline ModInt& operator*=(const ModInt& x){return (*this)=(*this)*x;}
-        inline ModInt& operator/=(const ModInt& x){return (*this)=(*this)/x;}
+        inline ModInt &operator+=(const ModInt &x) { return (*this) = (*this) + x; }
+        inline ModInt &operator-=(const ModInt &x) { return (*this) = (*this) - x; }
+        inline ModInt &operator*=(const ModInt &x) { return (*this) = (*this) * x; }
+        inline ModInt &operator/=(const ModInt &x) { return (*this) = (*this) / x; }
+
+        inline friend bool operator==(const ModInt &x, const ModInt &y) { return x.val == y.val; }
+#if __cplusplus >= 202002L
+        inline friend bool operator<=>(const ModInt &x, const ModInt &y) { return x.val <=> y.val; }
+#else
+        inline friend bool operator!=(const ModInt &x, const ModInt &y) { return x.val != y.val; }
+        inline friend bool operator<(const ModInt &x, const ModInt &y) { return x.val < y.val; }
+        inline friend bool operator>(const ModInt &x, const ModInt &y) { return x.val > y.val; }
+        inline friend bool operator<=(const ModInt &x, const ModInt &y) { return x.val <= y.val; }
+        inline friend bool operator>=(const ModInt &x, const ModInt &y) { return x.val >= y.val; }
+#endif
     private:
         value_type val;
     };
@@ -67,4 +78,5 @@ namespace MZLIB
     {
         return ModInt<_MOD, _T>((x.getval() * modinv(y.getval(), _MOD)) % _MOD);
     }
+
 }
