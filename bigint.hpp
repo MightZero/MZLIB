@@ -13,8 +13,6 @@
 #include <iterator>
 #include <string>
 
-#include<iostream>
-
 namespace MZLIB
 {
     struct NTT
@@ -66,6 +64,18 @@ namespace MZLIB
         }
     };
     std::vector<long> NTT::rev=std::vector<long>(0);
+
+    template<typename _T> 
+    inline constexpr _T pow10(size_t ex)
+    {
+        _T res=1,tmp=10;
+        while(ex)
+        {
+            if(ex&1)res=res*tmp;
+            tmp=tmp*tmp,ex>>=1;
+        }
+        return res;
+    }
 
     template<typename _T=long>
     class BigInt
@@ -144,7 +154,7 @@ namespace MZLIB
             if(_lsh.flag()!=_rsh.flag())return _lsh.flag()>_rsh.flag()?1:-1;
             if(_lsh.vec().size()!=_rsh.vec().size())return _lsh.flag()*(_lsh.vec().size()>_rsh.vec().size()?1:-1);
             int p=0;
-            for(auto itl=_lsh.vec().begin(),itr=_rsh.vec().begin();itl!=_lsh.vec().end();++itl,++itr)if(*itl!=*itr)return _lsh.flag()*(*itl>*itr?1:-1);
+            for(auto itl=_lsh.vec().rbegin(),itr=_rsh.vec().rbegin();itl!=_lsh.vec().rend();++itl,++itr)if(*itl!=*itr)return _lsh.flag()*(*itl>*itr?1:-1);
             return 0;
         }
         inline friend bool operator==(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)==0;}
@@ -226,8 +236,62 @@ namespace MZLIB
             ans.flag()=_lsh.flag()*_rsh.flag();
             return ans;
         }
+        inline friend BigInt operator<<(const BigInt &_lsh, const size_t &_rsh)
+        {
+            BigInt ans=BigInt();
+            size_t rsh=_rsh;
+            for (; _lsh.bitcnt()<=rsh; rsh-=_lsh.bitcnt())
+                ans.vec().push_back(0);
+            element_type sval=pow10<element_type>(_rsh),lst=0;
+            auto it=std::back_inserter(ans.vec());
+            for (auto itl=_lsh.vec().begin(); itl!=_lsh.vec().end();++itl)
+            {
+                *it=((*itl)*sval + lst)%_limit;
+                lst =((*itl)*sval + lst)/_limit;
+            }
+            while(lst)*it=lst%_limit, lst=lst/_limit;
+            ans.flag()=_lsh.flag();
+            ans.simplify();
+            return ans;
+        }
+        inline friend BigInt operator>>(const BigInt &_lsh, const size_t &_rsh)
+        {
+            size_t shr=_rsh/_bitcnt+(_rsh%_bitcnt>0),shp=_bitcnt-_rsh%_bitcnt;
+            BigInt ans=_lsh<<shp;
+            reverse(ans.vec().begin(),ans.vec().end());
+            while(ans.vec().size()&&shr--)ans.vec().pop_back();
+            reverse(ans.vec().begin(),ans.vec().end());
+            ans.simplify();
+            return ans;
+        }
+
+        // Todo: faster divmod algorithm
+        inline friend std::pair<BigInt,BigInt> divmod(const BigInt& _lsh, const BigInt& _rsh)
+        {
+            BigInt ans=0,pw=1,lsh=abs(_lsh),rsh=abs(_rsh);
+            while(lsh>=rsh)rsh=rsh<<1,pw=pw<<1;
+            while(pw>=1)
+            {
+                while(abs(lsh)>=abs(rsh))lsh=lsh-rsh,ans=ans+pw;
+                rsh=rsh>>1,pw=pw>>1;
+            }
+            ans.flag()=_lsh.flag()*_rsh.flag();
+            return {ans,lsh};
+        }
+        inline friend BigInt operator/(const BigInt& _lsh, const BigInt& _rsh){return divmod(_lsh,_rsh).first;}
+        inline friend BigInt operator%(const BigInt& _lsh, const BigInt& _rsh){return divmod(_lsh,_rsh).second;}
+
+
+        inline BigInt& operator+=(const BigInt& _rsh){return (*this)=(*this)+_rsh;}
+        inline BigInt& operator-=(const BigInt& _rsh){return (*this)=(*this)-_rsh;}
+        inline BigInt& operator*=(const BigInt& _rsh){return (*this)=(*this)*_rsh;}
+        inline BigInt& operator/=(const BigInt& _rsh){return (*this)=(*this)/_rsh;}
+        inline BigInt& operator%=(const BigInt& _rsh){return (*this)=(*this)%_rsh;}
+        inline BigInt& operator<<=(const size_t& _rsh){return (*this)=(*this)<<_rsh;}
+        inline BigInt& operator>>=(const size_t& _rsh){return (*this)=(*this)>>_rsh;}
+
     private:
-        static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/4;
+        static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/8;
         static constexpr element_type _limit=powl(10,_bitcnt);
         std::vector<element_type> _dat;
         int _flag;
