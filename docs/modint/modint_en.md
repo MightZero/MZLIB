@@ -133,7 +133,3 @@ catch (const std::domain_error &e)
     std::cerr << e.what() << std::endl;  // Output: "inverse does not exist"
 }
 ```
-
-## Performance Considerations
-
-The `modinv` function uses the Extended Euclidean Algorithm, which runs in `O(log m)` time complexity, making it efficient for large values of `m`. Arithmetic operations on `ModInt` objects are constant time (`O(1)`), making them suitable for use in performance-critical applications like competitive programming.

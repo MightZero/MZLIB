@@ -133,7 +133,3 @@ catch (const std::domain_error &e)
     std::cerr << e.what() << std::endl;  // 输出: "inverse does not exist"
 }
 ```
-
-## 性能考虑
-
-`modinv` 函数使用扩展欧几里得算法，时间复杂度为 `O(log m)`，对于较大的 `m` 值也能保持较高的效率。`ModInt` 对象的算术运算是常数时间操作（`O(1)`），因此非常适合在性能敏感的应用（如竞技编程）中使用。
