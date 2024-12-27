@@ -1,130 +1,158 @@
-# Matrix.hpp 使用手册
+# MZLIB/Matrix.hpp 使用文档
 
-## 概述
+## 1. 简介
+`MZLIB::Matrix` 是一个通用的矩阵类，支持多种类型的元素，默认为 `int` 类型。它提供了丰富的操作接口，包括初始化、加法、乘法（矩阵与矩阵、矩阵与标量）、求逆等。
 
-`matrix.hpp` 提供了一个矩阵类库，用于处理二维矩阵的基本操作。支持矩阵的构造、赋值、加法、乘法、迭代器遍历、初始化列表等功能。该库适用于不同数据类型的矩阵，默认情况下使用整数类型 (`int`)。
-
-## 主要组件
-
-### 1. `Matrix` 类
-`Matrix` 是一个动态大小的矩阵类，支持动态分配和释放内存。用户可以通过指定矩阵的行数和列数来创建一个矩阵，并且支持通过初始化列表来初始化矩阵的元素。
-
-#### 成员类型定义
-
-- `element_type`: 矩阵元素的类型。
-- `reference`: 对矩阵元素的引用类型。
-- `const_reference`: 对矩阵元素的常量引用类型。
-- `pointer`: 矩阵元素指针类型。
-- `const_pointer`: 矩阵元素的常量指针类型。
-
-#### 构造函数
-
-- `Matrix()`: 默认构造函数，创建一个空矩阵（0x0）。
-- `Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept`: 使用指定的行数 (`H`) 和列数 (`W`) 创建一个矩阵，并用给定值 (`x`) 初始化所有元素。
-- `Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)`: 通过嵌套的初始化列表创建矩阵。
-
-#### 访问方法
-
-- `inline typename std::vector<element_type>::iterator operator[](size_t x)`: 返回第 `x` 行的开始迭代器。
-- `inline typename std::vector<element_type>::const_iterator operator[](size_t x) const`: 返回第 `x` 行的常量开始迭代器。
-- `inline constexpr size_t getH() const noexcept`: 返回矩阵的行数。
-- `inline constexpr size_t getW() const noexcept`: 返回矩阵的列数。
-- `inline constexpr size_t size() const noexcept`: 返回矩阵元素的总数量（行数 * 列数）。
-
-#### 辅助方法
-
-- `Matrix& operator+=(const Matrix& x)`: 矩阵加法赋值运算符。
-- `Matrix& operator*=(const Matrix& x)`: 矩阵乘法赋值运算符。
-- `Matrix& operator*=(_T x)`: 矩阵与标量乘法赋值运算符。
-
-#### 迭代器
-
-- `iterator begin() noexcept`: 返回矩阵的开始迭代器。
-- `iterator end() noexcept`: 返回矩阵的结束迭代器。
-- `const_iterator begin() const noexcept`: 返回矩阵的常量开始迭代器。
-- `const_iterator end() const noexcept`: 返回矩阵的常量结束迭代器。
-- `reverse_iterator rbegin() noexcept`: 返回矩阵的反向开始迭代器。
-- `reverse_iterator rend() noexcept`: 返回矩阵的反向结束迭代器。
-- `const_reverse_iterator rbegin() const noexcept`: 返回矩阵的常量反向开始迭代器。
-- `const_reverse_iterator rend() const noexcept`: 返回矩阵的常量反向结束迭代器。
-- `const_reverse_iterator crbegin() const noexcept`: 返回矩阵的常量反向开始迭代器。
-- `const_reverse_iterator crend() const noexcept`: 返回矩阵的常量反向结束迭代器。
-
-### 2. 操作符重载
-
-#### 矩阵乘法
-
-- `operator*`: 矩阵乘法运算符，返回两个矩阵的乘积。
-
+## 2. 包含文件
+在使用 `MZLIB::Matrix` 之前，请确保包含头文件：
 ```cpp
-template <typename _T>
-inline Matrix<_T> operator*(const Matrix<_T> &x, const Matrix<_T> &y)
+#include "matrix.hpp"
 ```
 
-- `operator*`: 矩阵与标量乘法运算符，返回矩阵与标量的乘积。
-
+## 3. 类模板定义
 ```cpp
-template <typename _T>
-inline Matrix<_T> operator*(const Matrix<_T> &x, _T y)
+template <typename _T = int>
+class Matrix
+```
+- `_T`：矩阵元素类型，默认为 `int`。
 
-template <typename _T>
-inline Matrix<_T> operator*(_T y, const Matrix<_T> &x)
+## 4. 构造函数
+### 4.1 默认构造函数
+创建一个空矩阵。
+```cpp
+Matrix() = default;
 ```
 
-#### 矩阵加法
-
-- `operator+`: 矩阵加法运算符，返回两个矩阵的和。
-
+### 4.2 指定大小构造函数
+创建一个指定行数和列数的矩阵，并用给定值填充。
 ```cpp
-template <typename _T>
-inline Matrix<_T> operator+(const Matrix<_T> &x, const Matrix<_T> &y)
+Matrix(size_t H, size_t W, const element_type &x = element_type()) noexcept
+```
+- `H`：矩阵的行数。
+- `W`：矩阵的列数。
+- `x`：用于填充矩阵的初始值，默认为元素类型的默认值。
+
+### 4.3 列表初始化构造函数
+使用二维列表初始化矩阵。
+```cpp
+Matrix(std::initializer_list<std::initializer_list<element_type>> _ls)
+```
+- `_ls`：二维列表，每一行对应矩阵的一行。
+
+## 5. 成员函数
+
+### 5.1 获取矩阵尺寸
+```cpp
+inline constexpr size_t getH() const noexcept
+inline constexpr size_t getW() const noexcept
+inline constexpr size_t size() const noexcept
+```
+- `getH()`：返回矩阵的行数。
+- `getW()`：返回矩阵的列数。
+- `size()`：返回矩阵中元素的总数（行数 * 列数）。
+
+### 5.2 矩阵索引操作
+```cpp
+inline typename std::vector<element_type>::iterator operator[](size_t x)
+inline typename std::vector<element_type>::const_iterator operator[](size_t x) const
+```
+- `operator[]`：通过行索引访问矩阵的某一行，返回该行的迭代器。
+
+### 5.3 矩阵运算
+#### 5.3.1 加法
+```cpp
+Matrix &operator+=(const Matrix &x)
+Matrix<_T> operator+(const Matrix<_T> &x, const Matrix<_T> &y)
+```
+- `operator+=`：将另一个矩阵加到当前矩阵上，并返回引用。
+- `operator+`：返回两个矩阵相加的结果。
+
+#### 5.3.2 乘法
+##### 矩阵与矩阵相乘
+```cpp
+Matrix &operator*=(const Matrix &x)
+Matrix<_T> operator*(const Matrix<_T> &x, const Matrix<_T> &y)
+```
+- `operator*=`：将另一个矩阵乘到当前矩阵上，并返回引用。
+- `operator*`：返回两个矩阵相乘的结果。
+
+##### 矩阵与标量相乘
+```cpp
+Matrix &operator*=(element_type x)
+Matrix<_T> operator*(const Matrix<_T> &x, _T y)
+Matrix<_T> operator*(_T y, const Matrix<_T> &x)
+```
+- `operator*=`：将标量乘到当前矩阵上，并返回引用。
+- `operator*`：返回矩阵与标量相乘的结果。
+
+### 5.4 求逆
+```cpp
+inline Matrix<element_type> inverse() const
+```
+- 返回矩阵的逆矩阵。如果矩阵不是方阵或不可逆，则抛出异常。
+
+### 5.5 创建单位矩阵
+```cpp
+inline static Matrix<element_type> identity(size_t n)
+```
+- 返回一个 `n x n` 的单位矩阵。
+
+## 6. 迭代器支持
+`Matrix` 类提供了标准的迭代器支持，方便遍历矩阵中的元素。
+```cpp
+using iterator = typename std::vector<element_type>::iterator;
+using const_iterator = typename std::vector<element_type>::const_iterator;
+using reverse_iterator = std::reverse_iterator<iterator>;
+using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+inline iterator begin() noexcept
+inline iterator end() noexcept
+inline const_iterator begin() const noexcept
+inline const_iterator end() const noexcept
+inline const_iterator cbegin() const noexcept
+inline const_iterator cend() const noexcept
+inline reverse_iterator rbegin() noexcept
+inline reverse_iterator rend() noexcept
+inline const_reverse_iterator rbegin() const noexcept
+inline const_reverse_iterator rend() const noexcept
+inline const_reverse_iterator crbegin() const noexcept
+inline const_reverse_iterator crend() const noexcept
 ```
 
-## 使用示例
+## 7. 示例代码
 
-### 1. 创建和初始化矩阵
-
+### 7.1 初始化矩阵
 ```cpp
-// 动态矩阵
-MZLIB::Matrix<int> mat1(3, 3);  // 创建一个 3x3 的矩阵
-mat1[0][0] = 1;
-mat1[0][1] = 2;
-mat1[0][2] = 3;
-
-// 使用初始化列表创建矩阵
-MZLIB::Matrix<int> mat2 = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+MZLIB::Matrix<int> mat1(3, 3, 0); // 3x3 全零矩阵
+MZLIB::Matrix<int> mat2 = {
+    {1, 2, 3},
+    {4, 5, 6},
+    {7, 8, 9}
+};
 ```
 
-### 2. 矩阵加法
-
+### 7.2 矩阵运算
 ```cpp
-MZLIB::Matrix<int> mat3 = mat1 + mat2;
+MZLIB::Matrix<int> mat3 = mat1 + mat2; // 矩阵加法
+MZLIB::Matrix<int> mat4 = mat2 * 2;    // 矩阵与标量相乘
+MZLIB::Matrix<int> mat5 = mat2 * mat4; // 矩阵与矩阵相乘
 ```
 
-### 3. 矩阵乘法
-
+### 7.3 求逆矩阵
 ```cpp
-MZLIB::Matrix<int> mat4 = mat1 * mat2;
-```
-
-### 4. 矩阵与标量乘法
-
-```cpp
-MZLIB::Matrix<int> mat5 = mat1 * 2;
-MZLIB::Matrix<int> mat6 = 2 * mat1;
-```
-
-### 5. 迭代器遍历矩阵
-
-```cpp
-for (auto it = mat1.begin(); it != mat1.end(); ++it)
-{
-    std::cout << *it << " ";
+try {
+    MZLIB::Matrix<double> invMat = mat2.inverse();
+} catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl;
 }
 ```
 
-## 注意事项
+### 7.4 创建单位矩阵
+```cpp
+MZLIB::Matrix<int> idenMat = MZLIB::Matrix<int>::identity(3);
+```
 
-1. 使用 `operator[]` 方法时，请确保传入的行列索引在矩阵范围内，否则将导致未定义行为。
-2. 矩阵的加法和乘法操作要求参与运算的矩阵具有兼容的尺寸，否则会抛出 `std::invalid_argument` 异常。
-3. 在进行矩阵乘法时，左矩阵的列数必须等于右矩阵的行数，否则会抛出 `std::invalid_argument` 异常。
+## 8. 注意事项
+- 矩阵的乘法要求第一个矩阵的列数等于第二个矩阵的行数。
+- 求逆矩阵时，矩阵必须是方阵且可逆。
+- 使用列表初始化时，所有子列表的长度必须一致。
