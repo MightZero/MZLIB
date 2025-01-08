@@ -2,12 +2,12 @@
 // Modulo Int Packed Class Header
 // Programmed By MightZero
 // Copyright 2024 MightZero
-#include <stdexcept>
-#include <stddef.h>
 #pragma once
 #ifndef _MZLIB_MODINT_HPP
 #define _MZLIB_MODINT_HPP
 #endif
+#include <stdexcept>
+#include <stddef.h>
 
 namespace MZLIB
 {

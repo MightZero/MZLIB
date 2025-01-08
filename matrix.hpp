@@ -2,16 +2,16 @@
 // Matrix Packed Class Header
 // Programmed By MightZero
 // Copyright 2024 MightZero
+#pragma once
+#ifndef _MZLIB_MATRIX_HPP
+#define _MZLIB_MATRIX_HPP
+#endif
 #include <utility>
 #include <initializer_list>
 #include <vector>
 #include <stdexcept>
 #include <iterator>
 
-#pragma once
-#ifndef _MZLIB_MATRIX_HPP
-#define _MZLIB_MATRIX_HPP
-#endif
 
 namespace MZLIB
 {
