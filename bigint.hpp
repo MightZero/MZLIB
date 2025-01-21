@@ -12,27 +12,18 @@
 #include <cmath>
 #include <iterator>
 #include <string>
+#include <complex>
 
 namespace MZLIB
 {
-    struct NTT
+    struct FFT
     {
-        NTT()=delete;
-        static const long _M=998244353L;
-        static const long _R=3L;
+        FFT()=delete;
+        using fft_float=long double;
+        using complex=std::complex<fft_float>;
         static std::vector<long> rev;
-        inline static long mpow(long _a,long _b)
-        {
-            long res=1;
-            while(_b)
-            {
-                if(_b&1)res=res*_a%_M;
-                _a=_a*_a%_M,_b>>=1;
-            }
-            return res;
-        }
-        inline static long inv(long _val){return mpow(_val,_M-2);}
-        static void ntt(std::vector<long>& _poly,int _way)
+        static constexpr fft_float pi=fft_float(M_PIl);
+        static void fft(std::vector<complex>& _poly,int _way)
         {
             size_t n=_poly.size();
             if(rev.size()!=n)init(n);
@@ -40,30 +31,27 @@ namespace MZLIB
             for(size_t m=2;m<=n;m<<=1)
             {
                 auto mid=m>>1;
-                long wn=mpow(_R,_way==1?(_M-1)/m:_M-1-(_M-1)/m);
+                complex wn=std::exp(complex(0,_way*2*pi/m));
                 for(size_t j=0;j<n;j+=m)
                 {
-                    long w=1;
+                    complex w=1;
                     for(size_t k=0;k<mid;++k)
                     {
-                        long x=_poly[j+k],y=w*_poly[j+k+mid]%_M;
-                        _poly[j+k]=(x+y)%_M,_poly[j+k+mid]=(x-y+_M)%_M,w=w*wn%_M;
+                        complex x=_poly[j+k],y=w*_poly[j+k+mid];
+                        _poly[j+k]=x+y,_poly[j+k+mid]=x-y,w=w*wn;
                     }
                 }
             }
-            if(_way==-1)
-            {
-                long invn=inv(n);
-                for(auto &x:_poly)x=x*invn%_M;
-            }
+            if(_way==-1)for(auto &x:_poly)x/=n;
         }
         static void init(size_t n)
         {
+            size_t lgn=63-__builtin_clzll(n);
             rev.assign(n,0);
-            for(size_t i=0;i<n;++i)rev[i]=(rev[i>>1]>>1)|((i&1)<<(63-__builtin_clzll(n))-1);
+            for(size_t i=0;i<n;++i)rev[i]=(rev[i>>1]>>1)|((i&1)<<lgn-1);
         }
     };
-    std::vector<long> NTT::rev=std::vector<long>(0);
+    std::vector<long> FFT::rev=std::vector<long>(0);
 
     template<typename _T> 
     inline constexpr _T pow10(size_t ex)
@@ -213,27 +201,27 @@ namespace MZLIB
         }
         inline friend BigInt operator*(const BigInt& _lsh,const BigInt& _rsh)
         {
-            BigInt lsh=abs(_lsh),rsh=abs(_rsh);
-            std::string sl=static_cast<std::string>(lsh),sr=static_cast<std::string>(rsh),sans="";
-            reverse(sl.begin(),sl.end()),reverse(sr.begin(),sr.end());
-            std::vector<long> vl(0),vr(0);
-            for(auto ch:sl)vl.push_back(ch-'0');
-            for(auto ch:sr)vr.push_back(ch-'0');
+            std::vector<FFT::complex> vl(_lsh.vec().begin(),_lsh.vec().end()),vr(_rsh.vec().begin(),_rsh.vec().end());
             size_t n=1;
             while(n<vl.size()+vr.size())n<<=1;
             vl.resize(n),vr.resize(n);
-            NTT::ntt(vl,1),NTT::ntt(vr,1);
-            for(size_t i=0;i<n;++i)vl[i]=vl[i]*vr[i]%NTT::_M;
-            NTT::ntt(vl,-1);
+            FFT::fft(vl,1),FFT::fft(vr,1);
+            for(size_t i=0;i<n;++i)vl[i]=vl[i]*vr[i];
+            FFT::fft(vl,-1);
+            BigInt ans=0;
+            ans.vec().assign(n,0);
             for(size_t i=0;i<n;++i)
             {
-                if(i<n-1)vl[i+1]+=vl[i]/10;
-                sans.push_back(vl[i]%10+'0');
+                if(i<n-1)vl[i+1]+=element_type(std::round(vl[i].real()))/_limit;
+                ans.vec()[i]=(element_type(std::round(vl[i].real()))%_limit);
             }
-            while(sans.size()&&sans.back()=='0')sans.pop_back();
-            reverse(sans.begin(),sans.end());
-            BigInt ans=BigInt(sans);
+            while(ans.vec().back()>=_limit)
+            {
+                element_type res=ans.vec().back()/_limit;
+                ans.vec().back()%=_limit,ans.vec().push_back(res);
+            }
             ans.flag()=_lsh.flag()*_rsh.flag();
+            ans.simplify();
             return ans;
         }
         inline friend BigInt operator<<(const BigInt &_lsh, const size_t &_rsh)
@@ -291,7 +279,7 @@ namespace MZLIB
         inline BigInt& operator>>=(const size_t& _rsh){return (*this)=(*this)>>_rsh;}
 
     private:
-        static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/8;
+        static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/16;
         static constexpr element_type _limit=powl(10,_bitcnt);
         std::vector<element_type> _dat;
         int _flag;
