@@ -201,19 +201,20 @@ namespace MZLIB
         }
         inline friend BigInt operator*(const BigInt& _lsh,const BigInt& _rsh)
         {
-            std::vector<FFT::complex> vl(_lsh.vec().begin(),_lsh.vec().end()),vr(_rsh.vec().begin(),_rsh.vec().end());
             size_t n=1;
-            while(n<vl.size()+vr.size())n<<=1;
-            vl.resize(n),vr.resize(n);
-            FFT::fft(vl,1),FFT::fft(vr,1);
-            for(size_t i=0;i<n;++i)vl[i]=vl[i]*vr[i];
-            FFT::fft(vl,-1);
+            while(n<_lsh.vec().size()+_rsh.vec().size())n<<=1;
+            std::vector<FFT::complex> vc(_lsh.vec().begin(),_lsh.vec().end());
+            vc.resize(n);
+            for(size_t i=0;i<_rsh.vec().size();++i)vc[i].imag(_rsh.vec()[i]);
+            FFT::fft(vc,1);
+            for(auto &x:vc)x=x*x;
+            FFT::fft(vc,-1);
             BigInt ans=0;
             ans.vec().assign(n,0);
             for(size_t i=0;i<n;++i)
             {
-                if(i<n-1)vl[i+1]+=element_type(std::round(vl[i].real()))/_limit;
-                ans.vec()[i]=(element_type(std::round(vl[i].real()))%_limit);
+                ans.vec()[i]+=(element_type(std::round(vc[i].imag()/2)));
+                if(i<n-1)ans.vec()[i+1]+=ans.vec()[i]/_limit,ans.vec()[i]%=_limit;
             }
             while(ans.vec().back()>=_limit)
             {
