@@ -146,15 +146,15 @@ namespace MZLIB
             return 0;
         }
         inline friend bool operator==(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)==0;}
-    #if __cplusplus>=202002L
+#if __cplusplus>=202002L
         inline friend int operator<=>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh);}
-    #else
+#else
         inline friend bool operator!=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)!=0;}
         inline friend bool operator<(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)<0;}
         inline friend bool operator>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)>0;}
         inline friend bool operator<=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)<=0;}
         inline friend bool operator>=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)>=0;}
-    #endif
+#endif
         inline BigInt operator-() const
         {
             BigInt _tmp=*this;
