@@ -52,7 +52,6 @@ namespace MZLIB
         }
     };
     std::vector<long> FFT::rev=std::vector<long>(0);
-
     template<typename _T> 
     inline constexpr _T pow10(size_t ex)
     {
@@ -86,6 +85,7 @@ namespace MZLIB
                 _dat.back()=_dat.back()+npow*(_val%10);
                 _val/=10,npow*=10,++nexp;
             }
+            this->simplify();
         }
         BigInt(const std::string _val)
         {
@@ -103,6 +103,7 @@ namespace MZLIB
                 _dat.back()=_dat.back()+npow*(*itv-'0');
                 npow*=10,++nexp;
             }
+            this->simplify();
         }
         inline static int bitcnt() {return _bitcnt;}
         inline int& flag() {return _flag;}
@@ -136,6 +137,15 @@ namespace MZLIB
             BigInt _tmp=_val;
             _tmp.flag()=1;
             return _tmp;
+        }
+        inline size_t digit_count() const 
+        {
+            this->simplify();
+            if (_dat.empty()) return 0;
+            size_t sz=_dat.size()*_bitcnt;
+            element_type tmp = _dat.back();
+            while(tmp)++sz,tmp/=10;
+            return sz;
         }
         inline static int compare(const BigInt& _lsh,const BigInt& _rsh)
         {
@@ -257,6 +267,7 @@ namespace MZLIB
         // Todo: faster divmod algorithm
         inline friend std::pair<BigInt,BigInt> divmod(const BigInt& _lsh, const BigInt& _rsh)
         {
+            if(_rsh==0)throw std::invalid_argument("divisor cannot be zero");
             BigInt ans=0,pw=1,lsh=abs(_lsh),rsh=abs(_rsh);
             while(lsh>=rsh)rsh=rsh<<1,pw=pw<<1;
             while(pw>=1)
@@ -265,6 +276,7 @@ namespace MZLIB
                 rsh=rsh>>1,pw=pw>>1;
             }
             ans.flag()=_lsh.flag()*_rsh.flag();
+            ans.simplify(),lsh.simplify();
             return {ans,lsh};
         }
         inline friend BigInt operator/(const BigInt& _lsh, const BigInt& _rsh){return divmod(_lsh,_rsh).first;}
@@ -281,7 +293,7 @@ namespace MZLIB
 
     private:
         static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/16;
-        static constexpr element_type _limit=powl(10,_bitcnt);
+        static constexpr element_type _limit=pow10<element_type>(_bitcnt);
         std::vector<element_type> _dat;
         int _flag;
     };
