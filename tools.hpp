@@ -59,7 +59,7 @@ namespace MZLIB
 
     public:
         range(_T L, _T R) : _L(L), _R(R) {}
-        range(_T R) : _L(0), _R(R) {}
+        range(_T R) : _L(_T()), _R(R) {}
         iterator begin() { return iterator(_L); }
         iterator end() { return iterator(_R); }
     };
