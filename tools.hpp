@@ -1,7 +1,7 @@
 // FileName : modint.hpp
 // MZLIB Tools Header
 // Programmed By MightZero
-// Copyright 2024 MightZero
+// Copyright 2025 MightZero
 #pragma once
 #ifndef _MZLIB_TOOLS_HPP
 #define _MZLIB_TOOLS_HPP

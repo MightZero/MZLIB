@@ -1,7 +1,7 @@
 // FileName : modint.hpp
 // Modulo Int Packed Class Header
 // Programmed By MightZero
-// Copyright 2024 MightZero
+// Copyright 2025 MightZero
 #pragma once
 #ifndef _MZLIB_MODINT_HPP
 #define _MZLIB_MODINT_HPP

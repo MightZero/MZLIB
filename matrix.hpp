@@ -1,7 +1,7 @@
 // FileName : matrix.hpp
 // Matrix Packed Class Header
 // Programmed By MightZero
-// Copyright 2024 MightZero
+// Copyright 2025 MightZero
 #pragma once
 #ifndef _MZLIB_MATRIX_HPP
 #define _MZLIB_MATRIX_HPP
