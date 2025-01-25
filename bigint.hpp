@@ -131,6 +131,7 @@ namespace MZLIB
         inline void simplify()
         {
             while(_dat.size()&&_dat.back()==0)_dat.pop_back();
+            if(!_dat.size())_flag=1;
         }
         inline friend BigInt abs(const BigInt& _val)
         {
@@ -290,6 +291,10 @@ namespace MZLIB
         inline BigInt& operator%=(const BigInt& _rsh){return (*this)=(*this)%_rsh;}
         inline BigInt& operator<<=(const size_t& _rsh){return (*this)=(*this)<<_rsh;}
         inline BigInt& operator>>=(const size_t& _rsh){return (*this)=(*this)>>_rsh;}
+        inline BigInt& operator++(){return (*this)=(*this)+1;}
+        inline BigInt operator++(int){BigInt tmp=*this;return (*this)=(*this)+1,tmp;}
+        inline BigInt& operator--(){return (*this)=(*this)-1;}
+        inline BigInt operator--(int){BigInt tmp=*this;return (*this)=(*this)-1,tmp;}
 
     private:
         static constexpr size_t _bitcnt=sizeof(element_type)*__CHAR_BIT__/16;
