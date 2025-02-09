@@ -7,19 +7,69 @@
 #define _MZLIB_BIGINT_HPP
 #endif
 #include <stdexcept>
+#include <algorithm>
 #include <stddef.h>
 #include <vector>
 #include <cmath>
 #include <iterator>
 #include <string>
 #include <complex>
+#include <stdint.h>
 
 namespace MZLIB
 {
+    template<typename _Type>
+    struct FFT
+    {
+        FFT()=delete;
+        using fft_float=_Type;
+        using complex=std::complex<fft_float>;
+        static constexpr fft_float pi=fft_float(M_PI);
+        inline static uint64_t bitreverse(uint64_t x)
+        {
+            x=((x&0xaaaaaaaaaaaaaaaa)>>1)|((x&0x5555555555555555)<<1);
+            x=((x&0xcccccccccccccccc)>>2)|((x&0x3333333333333333)<<2);
+            x=((x&0xf0f0f0f0f0f0f0f0)>>4)|((x&0x0f0f0f0f0f0f0f0f)<<4);
+            x=((x&0xff00ff00ff00ff00)>>8)|((x&0x00ff00ff00ff00ff)<<8);
+            x=((x&0xffff0000ffff0000)>>16)|((x&0x0000ffff0000ffff)<<16);
+            return (x<<32)|(x>>32);
+        }
+        inline static uint64_t bitreverse(uint64_t x,size_t k)
+        {
+            uint64_t mask=(1ull<<k)-1;
+            return (bitreverse(x&mask)>>(64-k))|(x&~mask);
+        }
+        static void fft(std::vector<complex>& _poly,int _way)
+        {
+            size_t n=1,pw=0;
+            while(_poly.size()>n)n<<=1,++pw;
+            _poly.resize(n);
+            for(size_t i=0,j;j=bitreverse(i,pw),i<n;++i)if(i<j)std::swap(_poly[i],_poly[j]);
+            for(size_t m=2;m<=n;m<<=1)
+            {
+                complex wn(cos(_way*2*pi/m),sin(_way*2*pi/m));
+                auto mid=m>>1;
+                for(size_t j=0;j<n;j+=m)
+                {
+                    complex w=1;
+                    for(size_t k=0;k<mid;++k)
+                    {
+                        complex x=_poly[j+k],y=w*_poly[j+k+mid];
+                        _poly[j+k]=x+y,_poly[j+k+mid]=x-y,w=w*wn;
+                    }
+                }
+            }
+            if(_way==-1)for(auto &x:_poly)x/=n;
+        }
+    };
+    
+    template<typename _Type=int,typename _Container=std::vector<int>,typename _FFT_Type=double>
     class BigInt
     {
     public:
-        using element_type=int;
+        using container_type=_Container;
+        using element_type=_Type;
+        using fft_float=_FFT_Type;
         BigInt(){_dat.resize(0),_flag=1,update();}
         BigInt(long _val)
         {
@@ -82,15 +132,15 @@ namespace MZLIB
             _tmp.flag()=1;
             return _tmp;
         }
-        inline friend bool operator==(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)==0;}
+        inline friend bool operator==(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)==0;}
 #if __cplusplus>=202002L
-        inline friend int operator<=>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh);}
+        inline friend int operator<=>(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs);}
 #else
-        inline friend bool operator!=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)!=0;}
-        inline friend bool operator<(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)<0;}
-        inline friend bool operator>(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)>0;}
-        inline friend bool operator<=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)<=0;}
-        inline friend bool operator>=(const BigInt& _lsh,const BigInt& _rsh){return compare(_lsh,_rsh)>=0;}
+        inline friend bool operator!=(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)!=0;}
+        inline friend bool operator<(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)<0;}
+        inline friend bool operator>(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)>0;}
+        inline friend bool operator<=(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)<=0;}
+        inline friend bool operator>=(const BigInt& _lhs,const BigInt& _rhs){return compare(_lhs,_rhs)>=0;}
 #endif
         inline BigInt operator-() const
         {
@@ -98,17 +148,17 @@ namespace MZLIB
             _tmp.flag()=-_tmp.flag();
             return _tmp;
         }
-        inline friend BigInt operator+(const BigInt& _lsh,const BigInt& _rsh)
+        inline friend BigInt operator+(const BigInt& _lhs,const BigInt& _rhs)
         {
-            if(_lsh.flag()==-1&&_rsh.flag()==1){return _rsh-(-_lsh);};
-            if(_lsh.flag()==1&&_rsh.flag()==-1){return _lsh-(-_rsh);};
-            BigInt ans=BigInt(),lsh=_lsh,rsh=_rsh;
-            ans.flag()=lsh.flag();
+            if(_lhs.flag()==-1&&_rhs.flag()==1){return _rhs-(-_lhs);};
+            if(_lhs.flag()==1&&_rhs.flag()==-1){return _lhs-(-_rhs);};
+            BigInt ans=BigInt(),lhs=_lhs,rhs=_rhs;
+            ans.flag()=lhs.flag();
             auto it=back_inserter(ans._dat);
-            size_t sz=std::max(lsh._dat.size(),rsh._dat.size());
-            lsh._dat.resize(sz+1,0),rsh._dat.resize(sz+1,0);
+            size_t sz=std::max(lhs._dat.size(),rhs._dat.size());
+            lhs._dat.resize(sz+1,0),rhs._dat.resize(sz+1,0);
             element_type lst=0;
-            for(auto itl=lsh._dat.begin(),itr=rsh._dat.begin();itl!=lsh._dat.end();++itl,++itr)
+            for(auto itl=lhs._dat.begin(),itr=rhs._dat.begin();itl!=lhs._dat.end();++itl,++itr)
             {
                 *it=(*itl+*itr+lst)%_limit;
                 lst=(*itl+*itr+lst)/_limit;
@@ -116,18 +166,18 @@ namespace MZLIB
             ans.update();
             return ans;
         }
-        inline friend BigInt operator-(const BigInt& _lsh,const BigInt& _rsh)
+        inline friend BigInt operator-(const BigInt& _lhs,const BigInt& _rhs)
         {
-            if(_lsh.flag()==1&&_rsh.flag()==-1)return _lsh+(-_rsh);
-            if(_lsh.flag()==-1&&_rsh.flag()==1)return (-_lsh)+_rsh;
-            BigInt ans=BigInt(),lsh=abs(_lsh),rsh=abs(_rsh);
-            ans.flag()=_lsh.flag();
-            if(lsh<rsh)std::swap(lsh,rsh),ans.flag()=-ans.flag();
+            if(_lhs.flag()==1&&_rhs.flag()==-1)return _lhs+(-_rhs);
+            if(_lhs.flag()==-1&&_rhs.flag()==1)return (-_lhs)+_rhs;
+            BigInt ans=BigInt(),lhs=abs(_lhs),rhs=abs(_rhs);
+            ans.flag()=_lhs.flag();
+            if(lhs<rhs)std::swap(lhs,rhs),ans.flag()=-ans.flag();
             auto it=back_inserter(ans._dat);
-            size_t sz=std::max(lsh._dat.size(),rsh._dat.size());
-            lsh._dat.resize(sz,0),rsh._dat.resize(sz,0);
+            size_t sz=std::max(lhs._dat.size(),rhs._dat.size());
+            lhs._dat.resize(sz,0),rhs._dat.resize(sz,0);
             element_type lst=0;
-            for(auto itl=lsh._dat.begin(),itr=rsh._dat.begin();itl!=lsh._dat.end();++itl,++itr)
+            for(auto itl=lhs._dat.begin(),itr=rhs._dat.begin();itl!=lhs._dat.end();++itl,++itr)
             {
                 *it=(*itl-*itr+lst+_limit)%_limit;
                 if(*itl-*itr+lst>=0)lst=0;
@@ -136,16 +186,16 @@ namespace MZLIB
             ans.update();
             return ans;
         }
-        inline friend BigInt operator*(const BigInt& _lsh,const BigInt& _rsh)
+        inline friend BigInt operator*(const BigInt& _lhs,const BigInt& _rhs)
         {
             size_t n=1;
-            while(n<_lsh._dat.size()+_rsh._dat.size())n<<=1;
-            std::vector<FFT::complex> vc(_lsh._dat.begin(),_lsh._dat.end());
+            while(n<_lhs._dat.size()+_rhs._dat.size())n<<=1;
+            std::vector<typename FFT<fft_float>::complex> vc(_lhs._dat.begin(),_lhs._dat.end());
             vc.resize(n);
-            for(size_t i=0;i<_rsh._dat.size();++i)vc[i].imag(_rsh._dat[i]);
-            FFT::fft(vc,1);
+            for(size_t i=0;i<_rhs._dat.size();++i)vc[i].imag(_rhs._dat[i]);
+            FFT<fft_float>::fft(vc,1);
             for(auto &x:vc)x=x*x;
-            FFT::fft(vc,-1);
+            FFT<fft_float>::fft(vc,-1);
             BigInt ans=0;
             ans._dat.assign(n,0);
             for(size_t i=0;i<n;++i)
@@ -158,112 +208,84 @@ namespace MZLIB
                 element_type res=ans._dat.back()/_limit;
                 ans._dat.back()%=_limit,ans._dat.push_back(res);
             }
-            ans.flag()=_lsh.flag()*_rsh.flag();
+            ans.flag()=_lhs.flag()*_rhs.flag();
             ans.update();
             return ans;
         }
-        inline friend BigInt operator<<(const BigInt &_lsh, const size_t &_rsh)
+        inline friend BigInt operator<<(const BigInt &_lhs, const size_t &_rhs)
         {
             BigInt ans=BigInt();
-            size_t rsh=_rsh;
-            for (; _bitcnt<=rsh; rsh-=_bitcnt)
+            size_t rhs=_rhs;
+            for (; _bitcnt<=rhs; rhs-=_bitcnt)
                 ans._dat.push_back(0);
-            element_type sval=_pow10[rsh],lst=0;
+            element_type sval=_pow10[rhs],lst=0;
             auto it=std::back_inserter(ans._dat);
-            for (auto itl=_lsh._dat.begin(); itl!=_lsh._dat.end();++itl)
+            for (auto itl=_lhs._dat.begin(); itl!=_lhs._dat.end();++itl)
             {
                 *it=((*itl)*sval+lst)%_limit;
                 lst =((*itl)*sval+lst)/_limit;
             }
             while(lst)*it=lst%_limit, lst=lst/_limit;
-            ans.flag()=_lsh.flag();
+            ans.flag()=_lhs.flag();
             ans.update();
             return ans;
         }
-        inline friend BigInt operator>>(const BigInt &_lsh, const size_t &_rsh)
+        inline friend BigInt operator>>(const BigInt &_lhs, const size_t &_rhs)
         {
-            size_t shr=_rsh/_bitcnt+(_rsh%_bitcnt>0),shp=_bitcnt-_rsh%_bitcnt;
-            BigInt ans=_lsh<<shp;
+            size_t shr=_rhs/_bitcnt+(_rhs%_bitcnt>0),shp=_bitcnt-_rhs%_bitcnt;
+            BigInt ans=_lhs<<shp;
             reverse(ans._dat.begin(),ans._dat.end());
             while(ans._dat.size()&&shr--)ans._dat.pop_back();
             reverse(ans._dat.begin(),ans._dat.end());
             ans.update();
             return ans;
         }
-
         // Todo: faster divmod algorithm
-        inline friend std::pair<BigInt,BigInt> divmod(const BigInt& _lsh, const BigInt& _rsh)
+        inline friend std::pair<BigInt,BigInt> fast_divmod(const BigInt& _lhs,const BigInt& _rhs)
         {
-            if(_rsh==0)throw std::invalid_argument("divisor cannot be zero");
-            BigInt ans=0,pw=1,lsh=abs(_lsh),rsh=abs(_rsh);
-            while(lsh>=rsh)rsh=rsh<<1,pw=pw<<1;
+            BigInt lhs=_lhs,rhs=_rhs;
+            size_t nl=lhs.size(),nr=rhs.size();
+            if(2*nr<nl)lhs>>=(nl-2*nr),rhs>>=(nl-2*nr);
+             
+            //b<=2y-x;
+        }
+        inline friend std::pair<BigInt,BigInt> divmod(const BigInt& _lhs, const BigInt& _rhs)
+        {
+            if(_rhs==0)throw std::invalid_argument("divisor cannot be zero");
+            BigInt ans=0,pw=1,lhs=abs(_lhs),rhs=abs(_rhs);
+            while(lhs>=rhs)rhs=rhs<<1,pw=pw<<1;
             while(pw>=1)
             {
-                while(abs(lsh)>=abs(rsh))lsh=lsh-rsh,ans=ans+pw;
-                rsh=rsh>>1,pw=pw>>1;
+                while(abs(lhs)>=abs(rhs))lhs=lhs-rhs,ans=ans+pw;
+                rhs=rhs>>1,pw=pw>>1;
             }
-            ans.flag()=_lsh.flag()*_rsh.flag();
-            ans.update(),lsh.update();
-            return {ans,lsh};
+            ans.flag()=_lhs.flag()*_rhs.flag();
+            ans.update(),lhs.update();
+            return {ans,lhs};
         }
-        inline friend BigInt operator/(const BigInt& _lsh, const BigInt& _rsh){return divmod(_lsh,_rsh).first;}
-        inline friend BigInt operator%(const BigInt& _lsh, const BigInt& _rsh){return divmod(_lsh,_rsh).second;}
+        inline friend BigInt operator/(const BigInt& _lhs, const BigInt& _rhs){return divmod(_lhs,_rhs).first;}
+        inline friend BigInt operator%(const BigInt& _lhs, const BigInt& _rhs){return divmod(_lhs,_rhs).second;}
 
 
-        inline BigInt& operator+=(const BigInt& _rsh){return (*this)=(*this)+_rsh;}
-        inline BigInt& operator-=(const BigInt& _rsh){return (*this)=(*this)-_rsh;}
-        inline BigInt& operator*=(const BigInt& _rsh){return (*this)=(*this)*_rsh;}
-        inline BigInt& operator/=(const BigInt& _rsh){return (*this)=(*this)/_rsh;}
-        inline BigInt& operator%=(const BigInt& _rsh){return (*this)=(*this)%_rsh;}
-        inline BigInt& operator<<=(const size_t& _rsh){return (*this)=(*this)<<_rsh;}
-        inline BigInt& operator>>=(const size_t& _rsh){return (*this)=(*this)>>_rsh;}
+        inline BigInt& operator+=(const BigInt& _rhs){return (*this)=(*this)+_rhs;}
+        inline BigInt& operator-=(const BigInt& _rhs){return (*this)=(*this)-_rhs;}
+        inline BigInt& operator*=(const BigInt& _rhs){return (*this)=(*this)*_rhs;}
+        inline BigInt& operator/=(const BigInt& _rhs){return (*this)=(*this)/_rhs;}
+        inline BigInt& operator%=(const BigInt& _rhs){return (*this)=(*this)%_rhs;}
+        inline BigInt& operator<<=(const size_t& _rhs){return (*this)=(*this)<<_rhs;}
+        inline BigInt& operator>>=(const size_t& _rhs){return (*this)=(*this)>>_rhs;}
         inline BigInt& operator++(){return (*this)=(*this)+1;}
         inline BigInt operator++(int){BigInt tmp=*this;return (*this)=(*this)+1,tmp;}
         inline BigInt& operator--(){return (*this)=(*this)-1;}
         inline BigInt operator--(int){BigInt tmp=*this;return (*this)=(*this)-1,tmp;}
 
-    private:
-        static constexpr size_t _bitcnt=2;
-        static constexpr element_type _limit=100;
-        static constexpr element_type _pow10[3]={1,10,100};
+    protected:
+        static constexpr size_t _bitcnt=sizeof(element_type)/2;
+        static constexpr size_t _pow10[5]={1,size_t(1e1),size_t(1e2),size_t(1e3),size_t(1e4)};
+        static constexpr size_t _limit=_pow10[_bitcnt];
         size_t _size;
-        std::vector<element_type> _dat;
+        container_type _dat;
         int _flag;
-        struct FFT
-        {
-            FFT()=delete;
-            using fft_float=double;
-            using complex=std::complex<fft_float>;
-            static std::vector<size_t> rev;
-            static constexpr fft_float pi=fft_float(M_PI);
-            static void fft(std::vector<complex>& _poly,int _way)
-            {
-                size_t n=_poly.size();
-                if(rev.size()!=n)init(n);
-                for(size_t i=0;i<n;++i)if(i<rev[i])std::swap(_poly[i],_poly[rev[i]]);
-                for(size_t m=2;m<=n;m<<=1)
-                {
-                    complex wn=std::exp(complex(0,_way*2*pi/m));
-                    auto mid=m>>1;
-                    for(size_t j=0;j<n;j+=m)
-                    {
-                        complex w=1;
-                        for(size_t k=0;k<mid;++k)
-                        {
-                            complex x=_poly[j+k],y=w*_poly[j+k+mid];
-                            _poly[j+k]=x+y,_poly[j+k+mid]=x-y,w=w*wn;
-                        }
-                    }
-                }
-                if(_way==-1)for(auto &x:_poly)x/=n;
-            }
-            static void init(size_t n)
-            {
-                size_t lgn=63-__builtin_clzll(n);
-                rev.assign(n,0);
-                for(size_t i=0;i<n;++i)rev[i]=(rev[i>>1]>>1)|((i&1)<<lgn-1);
-            }
-        };
         inline void update()
         {
             while(_dat.size()&&_dat.back()==0)_dat.pop_back();
@@ -275,14 +297,13 @@ namespace MZLIB
                 while(tmp)++_size,tmp/=10;
             }
         }
-        inline static int compare(const BigInt& _lsh,const BigInt& _rsh)
+        inline static int compare(const BigInt& _lhs,const BigInt& _rhs)
         {
-            if(_lsh.flag()!=_rsh.flag())return _lsh.flag()>_rsh.flag()?1:-1;
-            if(_lsh._dat.size()!=_rsh._dat.size())return _lsh.flag()*(_lsh._dat.size()>_rsh._dat.size()?1:-1);
+            if(_lhs.flag()!=_rhs.flag())return _lhs.flag()>_rhs.flag()?1:-1;
+            if(_lhs._dat.size()!=_rhs._dat.size())return _lhs.flag()*(_lhs._dat.size()>_rhs._dat.size()?1:-1);
             int p=0;
-            for(auto itl=_lsh._dat.rbegin(),itr=_rsh._dat.rbegin();itl!=_lsh._dat.rend();++itl,++itr)if(*itl!=*itr)return _lsh.flag()*(*itl>*itr?1:-1);
+            for(auto itl=_lhs._dat.rbegin(),itr=_rhs._dat.rbegin();itl!=_lhs._dat.rend();++itl,++itr)if(*itl!=*itr)return _lhs.flag()*(*itl>*itr?1:-1);
             return 0;
         }
     };
-    std::vector<size_t> BigInt::FFT::rev=std::vector<size_t>(0);
 }
