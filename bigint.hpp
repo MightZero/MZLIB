@@ -260,7 +260,7 @@ namespace MZLIB
             BigInt lhs=abs(_lhs), rhs=abs(_rhs);
             if(lhs<rhs)return {BigInt(0),_lhs};
             if(rhs==1)return {_lhs,BigInt(0)};
-            static constexpr size_t NEWTON_MIN_LEVEL=16;
+            static constexpr size_t NEWTON_MIN_LEVEL=4;
             struct{
                 BigInt operator()(const BigInt& num, size_t n) const 
                 {
@@ -282,7 +282,7 @@ namespace MZLIB
             while(r>=rhs)q=q+1;r=r-rhs;
             q.flag()=_lhs.flag()*_rhs.flag(),r.flag()=_lhs.flag();
             q.update(),r.update();
-            return {q, r};
+            return {q,r};
         }
         inline friend BigInt operator/(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).first;}
         inline friend BigInt operator%(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).second;}
