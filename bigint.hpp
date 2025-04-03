@@ -265,7 +265,7 @@ namespace MZLIB
                 BigInt operator()(const BigInt& num, size_t n) const 
                 {
                     if(num==0)throw std::invalid_argument("divisor cannot be zero");
-                    if(std::min(num.size(),n-num.size())<=NEWTON_MIN_LEVEL)return divmod(BigInt(1)<<n,num).first;
+                    if(n-num.size()<=NEWTON_MIN_LEVEL)return divmod(BigInt(1)<<n,num).first;
                     size_t k=(n-num.size()+2)>>1,k2=k>num.size()?0:num.size()-k;
                     BigInt x=num>>k2;
                     size_t n2=k+x.size();
@@ -279,7 +279,7 @@ namespace MZLIB
             size_t n2=k+adjusted_rhs.size();
             BigInt inv=newton_inv(adjusted_rhs,n2);
             BigInt q=(lhs*inv)>>(n2+k2),r=lhs-q*rhs;
-            while(r>=rhs)q=q+1;r=r-rhs;
+            while(r>=rhs)q=q+1,r=r-rhs;
             q.flag()=_lhs.flag()*_rhs.flag(),r.flag()=_lhs.flag();
             q.update(),r.update();
             return {q,r};
