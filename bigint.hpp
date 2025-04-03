@@ -232,22 +232,13 @@ namespace MZLIB
         }
         inline friend BigInt operator>>(const BigInt &_lhs, const size_t &_rhs)
         {
-            size_t shr=_rhs/_bitcnt+(_rhs%_bitcnt>0),shp=_bitcnt-_rhs%_bitcnt;
+            size_t shr=_rhs/_bitcnt+(_rhs%_bitcnt>0),shp=(_bitcnt-_rhs%_bitcnt)%_bitcnt;
             BigInt ans=_lhs<<shp;
             reverse(ans._dat.begin(),ans._dat.end());
             while(ans._dat.size()&&shr--)ans._dat.pop_back();
             reverse(ans._dat.begin(),ans._dat.end());
             ans.update();
             return ans;
-        }
-        // Todo: faster divmod algorithm
-        inline friend std::pair<BigInt,BigInt> fast_divmod(const BigInt& _lhs,const BigInt& _rhs)
-        {
-            BigInt lhs=_lhs,rhs=_rhs;
-            size_t nl=lhs.size(),nr=rhs.size();
-            if(2*nr<nl)lhs>>=(nl-2*nr),rhs>>=(nl-2*nr);
-             
-            //b<=2y-x;
         }
         inline friend std::pair<BigInt,BigInt> divmod(const BigInt& _lhs, const BigInt& _rhs)
         {
@@ -263,9 +254,38 @@ namespace MZLIB
             ans.update(),lhs.update();
             return {ans,lhs};
         }
-        inline friend BigInt operator/(const BigInt& _lhs, const BigInt& _rhs){return divmod(_lhs,_rhs).first;}
-        inline friend BigInt operator%(const BigInt& _lhs, const BigInt& _rhs){return divmod(_lhs,_rhs).second;}
-
+        inline friend std::pair<BigInt, BigInt> fast_divmod(const BigInt& _lhs, const BigInt& _rhs)
+        {
+            if(_rhs==0)throw std::invalid_argument("divisor cannot be zero");
+            BigInt lhs=abs(_lhs), rhs=abs(_rhs);
+            if(lhs<rhs)return {BigInt(0),_lhs};
+            if(rhs==1)return {_lhs,BigInt(0)};
+            static constexpr size_t NEWTON_MIN_LEVEL=16;
+            struct{
+                BigInt operator()(const BigInt& num, size_t n) const 
+                {
+                    if(num==0)throw std::invalid_argument("divisor cannot be zero");
+                    if(std::min(num.size(),n-num.size())<=NEWTON_MIN_LEVEL)return divmod(BigInt(1)<<n,num).first;
+                    size_t k=(n-num.size()+2)>>1,k2=k>num.size()?0:num.size()-k;
+                    BigInt x=num>>k2;
+                    size_t n2=k+x.size();
+                    BigInt y=(*this)(x,n2),a=y+y,b=num*y*y;
+                    return (a<<(n-n2-k2))-(b>>(2*(n2+k2)-n))-1;
+                }
+            }newton_inv;
+            size_t k=lhs.size()-rhs.size()+2,k2=(k>rhs.size()?0:rhs.size()-k);
+            BigInt adjusted_rhs=rhs>>k2;
+            if(k2!=0)adjusted_rhs=adjusted_rhs+1;
+            size_t n2=k+adjusted_rhs.size();
+            BigInt inv=newton_inv(adjusted_rhs,n2);
+            BigInt q=(lhs*inv)>>(n2+k2),r=lhs-q*rhs;
+            while(r>=rhs)q=q+1;r=r-rhs;
+            q.flag()=_lhs.flag()*_rhs.flag(),r.flag()=_lhs.flag();
+            q.update(),r.update();
+            return {q, r};
+        }
+        inline friend BigInt operator/(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).first;}
+        inline friend BigInt operator%(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).second;}
 
         inline BigInt& operator+=(const BigInt& _rhs){return (*this)=(*this)+_rhs;}
         inline BigInt& operator-=(const BigInt& _rhs){return (*this)=(*this)-_rhs;}
