@@ -1,7 +1,7 @@
 // FileName : tools.hpp
 // MZLIB Tools Header
 // Programmed By MightZero
-// Copyright 2025 MightZero
+// Copyright (c) 2025-2026 MightZero
 #pragma once
 #ifndef _MZLIB_TOOLS_HPP
 #define _MZLIB_TOOLS_HPP

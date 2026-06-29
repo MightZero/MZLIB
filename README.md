@@ -2,4 +2,4 @@
 
 MightZero's Personal C++ Libraries
 
-Copyright 2025 MightZero
+Copyright (c) 2025-2026 MightZero

@@ -1,7 +1,7 @@
 // FileName : bigint.hpp
 // High-Precision Int Packed Class Header
 // Programmed By MightZero
-// Copyright 2025 MightZero
+// Copyright (c) 2025-2026 MightZero
 #pragma once
 #ifndef _MZLIB_BIGINT_HPP
 #define _MZLIB_BIGINT_HPP
