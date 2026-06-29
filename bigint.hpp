@@ -18,17 +18,29 @@ namespace MZLIB
 {
 
 
-    template<size_t _Mod,size_t _Root,size_t _MaxExp>
+    template<uint32_t _Mod,uint32_t _Root,size_t _MaxExp>
     struct NTT
     {
         NTT()=delete;
-        static constexpr size_t mod=_Mod;
-        static constexpr size_t root=_Root;
+        using value_type=uint32_t;
+        static constexpr value_type mod=_Mod;
+        static constexpr value_type root=_Root;
         static constexpr size_t max_exp=_MaxExp;
-        static constexpr size_t mu=size_t((__uint128_t(1)<<64)/mod);
-        static constexpr size_t powmod(size_t a,size_t e)
+        // Montgomery inverse: -mod^(-1) mod 2^32
+        static constexpr value_type inv=[](){
+            value_type inv=1;
+            for(int i=0;i<5;++i)inv=inv*(2-mod*inv);
+            return -inv;
+        }();
+        // R^2 mod mod where R=2^32
+        static constexpr value_type r2=[](){
+            uint64_t r=uint64_t(1)<<32;
+            r%=mod;
+            return value_type(r*r%mod);
+        }();
+        static constexpr value_type powmod(value_type a,uint32_t e)
         {
-            size_t r=1;
+            value_type r=1;
             while(e)
             {
                 if(e&1)r=uint64_t(r)*a%mod;
@@ -37,16 +49,19 @@ namespace MZLIB
             }
             return r;
         }
-        static constexpr size_t mod_inv(size_t a){return powmod(a,mod-2);}
-        static inline size_t mul_mod(size_t a,size_t b)
+        static constexpr value_type mod_inv(value_type a){return powmod(a,mod-2);}
+        // Montgomery multiplication: a * b * R^(-1) mod mod
+        static inline value_type mont_mul(value_type a,value_type b)
         {
             uint64_t prod=uint64_t(a)*b;
-            size_t q=size_t((__uint128_t(prod)*mu)>>64);
-            size_t r=prod-q*mod;
-            if(r>=mod)r-=mod;
-            return r;
+            value_type q=value_type(prod)*inv;
+            value_type r=value_type((prod+uint64_t(q)*mod)>>32);
+            value_type sub=value_type(0)-(r>=mod);
+            return r-(sub&mod);
         }
-        static inline void bit_reverse(size_t *data,size_t n)
+        static inline value_type to_mont(value_type x){return mont_mul(x,r2);}
+        static inline value_type from_mont(value_type x){return mont_mul(x,1);}
+        static inline void bit_reverse(value_type *data,size_t n)
         {
             for(size_t i=1,j=0;i<n;++i)
             {
@@ -56,73 +71,90 @@ namespace MZLIB
                 if(i<j)std::swap(data[i],data[j]);
             }
         }
-        static void fill_roots(size_t *wtable,size_t n,int way)
+        static void fill_roots(value_type *wtable,size_t n,int way)
         {
             for(size_t len=2,pos=0;len<=n;len<<=1)
             {
                 size_t half=len>>1;
-                size_t wlen=powmod(root,(mod-1)/len);
+                value_type wlen=powmod(root,(mod-1)/len);
                 if(way==-1)wlen=mod_inv(wlen);
-                wtable[pos]=1;
+                wlen=to_mont(wlen);
+                wtable[pos]=to_mont(1);
+                #pragma GCC ivdep
                 for(size_t j=1;j<half;++j)
-                    wtable[pos+j]=mul_mod(wtable[pos+j-1],wlen);
+                    wtable[pos+j]=mont_mul(wtable[pos+j-1],wlen);
                 pos+=half;
             }
         }
-        static void ntt_core(size_t *data,size_t n,const size_t *w)
+        static void ntt_core(value_type *__restrict__ data,size_t n,const value_type *__restrict__ w)
         {
             for(size_t len=2,pos=0;len<=n;len<<=1)
             {
                 size_t half=len>>1;
-                const size_t *wptr=w+pos;
+                const value_type *__restrict__ wptr=w+pos;
                 for(size_t i=0;i<n;i+=len)
+                {
+                    value_type *__restrict__ lo=data+i;
+                    value_type *__restrict__ hi=data+i+half;
+                    #pragma GCC ivdep
                     for(size_t j=0;j<half;++j)
                     {
-                        size_t u=data[i+j];
-                        size_t v=mul_mod(data[i+j+half],wptr[j]);
-                        size_t sum=u+v;
-                        size_t diff=u+mod-v;
-                        data[i+j]=sum>=mod?sum-mod:sum;
-                        data[i+j+half]=diff>=mod?diff-mod:diff;
+                        value_type u=lo[j];
+                        value_type v=mont_mul(hi[j],wptr[j]);
+                        value_type sum=u+v;
+                        value_type diff=u+mod-v;
+                        value_type m1=value_type(0)-(sum>=mod);
+                        value_type m2=value_type(0)-(diff>=mod);
+                        lo[j]=sum-(m1&mod);
+                        hi[j]=diff-(m2&mod);
                     }
+                }
                 pos+=half;
             }
         }
-        static void ntt(std::vector<size_t>& poly,int way)
+        static void ntt(std::vector<value_type>& poly,int way)
         {
             size_t n=poly.size();
-            size_t *data=poly.data();
+            value_type *data=poly.data();
+            for(size_t i=0;i<n;++i)data[i]=to_mont(data[i]);
             bit_reverse(data,n);
-            std::vector<size_t> roots(n);
+            std::vector<value_type> roots(n);
             fill_roots(roots.data(),n,way);
             ntt_core(data,n,roots.data());
             if(way==-1)
             {
-                size_t inv_n=mod_inv(n);
+                value_type inv_n=to_mont(mod_inv(n));
                 for(size_t i=0;i<n;++i)
-                    data[i]=mul_mod(data[i],inv_n);
+                {
+                    data[i]=mont_mul(data[i],inv_n);
+                    data[i]=from_mont(data[i]);
+                }
             }
+            else
+                for(size_t i=0;i<n;++i)data[i]=from_mont(data[i]);
         }
-        static std::vector<size_t> convolve(const std::vector<size_t>& a,const std::vector<size_t>& b,size_t n)
+        static std::vector<value_type> convolve(const std::vector<value_type>& a,const std::vector<value_type>& b,size_t n)
         {
-            std::vector<size_t> A(n,0),B(n,0);
-            std::copy(a.begin(),a.end(),A.begin());
-            std::copy(b.begin(),b.end(),B.begin());
+            std::vector<value_type> A(n,0),B(n,0);
+            for(size_t i=0;i<a.size();++i)A[i]=to_mont(a[i]);
+            for(size_t i=0;i<b.size();++i)B[i]=to_mont(b[i]);
             bit_reverse(A.data(),n);
             bit_reverse(B.data(),n);
-            std::vector<size_t> roots(n);
+            std::vector<value_type> roots(n);
             fill_roots(roots.data(),n,1);
             ntt_core(A.data(),n,roots.data());
             ntt_core(B.data(),n,roots.data());
-            size_t *pa=A.data(),*pb=B.data();
             for(size_t i=0;i<n;++i)
-                pa[i]=mul_mod(pa[i],pb[i]);
-            bit_reverse(pa,n);
+                A[i]=mont_mul(A[i],B[i]);
+            bit_reverse(A.data(),n);
             fill_roots(roots.data(),n,-1);
-            ntt_core(pa,n,roots.data());
-            size_t inv_n=mod_inv(n);
+            ntt_core(A.data(),n,roots.data());
+            value_type inv_n=to_mont(mod_inv(n));
             for(size_t i=0;i<n;++i)
-                pa[i]=mul_mod(pa[i],inv_n);
+            {
+                A[i]=mont_mul(A[i],inv_n);
+                A[i]=from_mont(A[i]);
+            }
             return A;
         }
     };
@@ -289,9 +321,9 @@ namespace MZLIB
             int num_moduli=1;
             if(max_coeff>=MOD1)num_moduli=2;
             if(num_moduli==2&&max_coeff>=uint64_t(MOD1)*MOD2)num_moduli=3;
-            std::vector<size_t> a(_lhs._dat.begin(),_lhs._dat.end());
-            std::vector<size_t> b(_rhs._dat.begin(),_rhs._dat.end());
-            std::vector<size_t> conv1,conv2,conv3;
+            std::vector<uint32_t> a(_lhs._dat.begin(),_lhs._dat.end());
+            std::vector<uint32_t> b(_rhs._dat.begin(),_rhs._dat.end());
+            std::vector<uint32_t> conv1,conv2,conv3;
             if(num_moduli>=1)conv1=NTT1::convolve(a,b,n);
             if(num_moduli>=2)conv2=NTT2::convolve(a,b,n);
             if(num_moduli>=3)conv3=NTT3::convolve(a,b,n);
