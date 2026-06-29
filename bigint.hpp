@@ -10,66 +10,132 @@
 #include <algorithm>
 #include <stddef.h>
 #include <vector>
-#include <cmath>
 #include <iterator>
 #include <string>
-#include <complex>
 #include <stdint.h>
 
 namespace MZLIB
 {
-    template<typename _Type>
-    struct FFT
+
+
+    template<size_t _Mod,size_t _Root,size_t _MaxExp>
+    struct NTT
     {
-        FFT()=delete;
-        using fft_float=_Type;
-        using complex=std::complex<fft_float>;
-        static constexpr fft_float pi=fft_float(M_PI);
-        inline static uint64_t bitreverse(uint64_t x)
+        NTT()=delete;
+        static constexpr size_t mod=_Mod;
+        static constexpr size_t root=_Root;
+        static constexpr size_t max_exp=_MaxExp;
+        static constexpr size_t mu=size_t((__uint128_t(1)<<64)/mod);
+        static constexpr size_t powmod(size_t a,size_t e)
         {
-            x=((x&0xaaaaaaaaaaaaaaaa)>>1)|((x&0x5555555555555555)<<1);
-            x=((x&0xcccccccccccccccc)>>2)|((x&0x3333333333333333)<<2);
-            x=((x&0xf0f0f0f0f0f0f0f0)>>4)|((x&0x0f0f0f0f0f0f0f0f)<<4);
-            x=((x&0xff00ff00ff00ff00)>>8)|((x&0x00ff00ff00ff00ff)<<8);
-            x=((x&0xffff0000ffff0000)>>16)|((x&0x0000ffff0000ffff)<<16);
-            return (x<<32)|(x>>32);
-        }
-        inline static uint64_t bitreverse(uint64_t x,size_t k)
-        {
-            uint64_t mask=(1ull<<k)-1;
-            return (bitreverse(x&mask)>>(64-k))|(x&~mask);
-        }
-        static void fft(std::vector<complex>& _poly,int _way)
-        {
-            size_t n=1,pw=0;
-            while(_poly.size()>n)n<<=1,++pw;
-            _poly.resize(n);
-            for(size_t i=0,j;j=bitreverse(i,pw),i<n;++i)if(i<j)std::swap(_poly[i],_poly[j]);
-            for(size_t m=2;m<=n;m<<=1)
+            size_t r=1;
+            while(e)
             {
-                complex wn(cos(_way*2*pi/m),sin(_way*2*pi/m));
-                auto mid=m>>1;
-                for(size_t j=0;j<n;j+=m)
-                {
-                    complex w=1;
-                    for(size_t k=0;k<mid;++k)
-                    {
-                        complex x=_poly[j+k],y=w*_poly[j+k+mid];
-                        _poly[j+k]=x+y,_poly[j+k+mid]=x-y,w=w*wn;
-                    }
-                }
+                if(e&1)r=uint64_t(r)*a%mod;
+                a=uint64_t(a)*a%mod;
+                e>>=1;
             }
-            if(_way==-1)for(auto &x:_poly)x/=n;
+            return r;
+        }
+        static constexpr size_t mod_inv(size_t a){return powmod(a,mod-2);}
+        static inline size_t mul_mod(size_t a,size_t b)
+        {
+            uint64_t prod=uint64_t(a)*b;
+            size_t q=size_t((__uint128_t(prod)*mu)>>64);
+            size_t r=prod-q*mod;
+            if(r>=mod)r-=mod;
+            return r;
+        }
+        static inline void bit_reverse(size_t *data,size_t n)
+        {
+            for(size_t i=1,j=0;i<n;++i)
+            {
+                size_t bit=n>>1;
+                for(;j&bit;bit>>=1)j^=bit;
+                j^=bit;
+                if(i<j)std::swap(data[i],data[j]);
+            }
+        }
+        static void fill_roots(size_t *wtable,size_t n,int way)
+        {
+            for(size_t len=2,pos=0;len<=n;len<<=1)
+            {
+                size_t half=len>>1;
+                size_t wlen=powmod(root,(mod-1)/len);
+                if(way==-1)wlen=mod_inv(wlen);
+                wtable[pos]=1;
+                for(size_t j=1;j<half;++j)
+                    wtable[pos+j]=mul_mod(wtable[pos+j-1],wlen);
+                pos+=half;
+            }
+        }
+        static void ntt_core(size_t *data,size_t n,const size_t *w)
+        {
+            for(size_t len=2,pos=0;len<=n;len<<=1)
+            {
+                size_t half=len>>1;
+                const size_t *wptr=w+pos;
+                for(size_t i=0;i<n;i+=len)
+                    for(size_t j=0;j<half;++j)
+                    {
+                        size_t u=data[i+j];
+                        size_t v=mul_mod(data[i+j+half],wptr[j]);
+                        size_t sum=u+v;
+                        size_t diff=u+mod-v;
+                        data[i+j]=sum>=mod?sum-mod:sum;
+                        data[i+j+half]=diff>=mod?diff-mod:diff;
+                    }
+                pos+=half;
+            }
+        }
+        static void ntt(std::vector<size_t>& poly,int way)
+        {
+            size_t n=poly.size();
+            size_t *data=poly.data();
+            bit_reverse(data,n);
+            std::vector<size_t> roots(n);
+            fill_roots(roots.data(),n,way);
+            ntt_core(data,n,roots.data());
+            if(way==-1)
+            {
+                size_t inv_n=mod_inv(n);
+                for(size_t i=0;i<n;++i)
+                    data[i]=mul_mod(data[i],inv_n);
+            }
+        }
+        static std::vector<size_t> convolve(const std::vector<size_t>& a,const std::vector<size_t>& b,size_t n)
+        {
+            std::vector<size_t> A(n,0),B(n,0);
+            std::copy(a.begin(),a.end(),A.begin());
+            std::copy(b.begin(),b.end(),B.begin());
+            bit_reverse(A.data(),n);
+            bit_reverse(B.data(),n);
+            std::vector<size_t> roots(n);
+            fill_roots(roots.data(),n,1);
+            ntt_core(A.data(),n,roots.data());
+            ntt_core(B.data(),n,roots.data());
+            size_t *pa=A.data(),*pb=B.data();
+            for(size_t i=0;i<n;++i)
+                pa[i]=mul_mod(pa[i],pb[i]);
+            bit_reverse(pa,n);
+            fill_roots(roots.data(),n,-1);
+            ntt_core(pa,n,roots.data());
+            size_t inv_n=mod_inv(n);
+            for(size_t i=0;i<n;++i)
+                pa[i]=mul_mod(pa[i],inv_n);
+            return A;
         }
     };
+    using NTT1=NTT<998244353,3,23>;
+    using NTT2=NTT<469762049,3,26>;
+    using NTT3=NTT<1224736769,3,24>;
     
-    template<typename _Type=int,typename _Container=std::vector<int>,typename _FFT_Type=double>
+    template<typename _Type=int,typename _Container=std::vector<int>,size_t _BitCnt=9>
     class BigInt
     {
     public:
         using container_type=_Container;
         using element_type=_Type;
-        using fft_float=_FFT_Type;
         BigInt(){_dat.resize(0),_flag=1,update();}
         BigInt(long _val)
         {
@@ -108,23 +174,25 @@ namespace MZLIB
         inline int& flag() {return _flag;}
         inline const int& flag() const {return _flag;}
         inline size_t size() const {return _size;}
+        inline explicit operator bool() const {return _dat.size();}
         inline operator std::string() const
         {
-            std::string _str="";
+            size_t cap=_dat.size()*_bitcnt+2;
+            std::string _str(cap,'\0');
+            char *p=_str.data()+cap;
             for(auto it=_dat.begin();it!=_dat.end();++it)
             {
                 auto _val=*it;
-                for(auto i=0;i<_bitcnt;++i)
+                for(size_t i=0;i<_bitcnt;++i)
                 {
-                    _str.push_back(_val%10+'0');
+                    *--p=char('0'+_val%10);
                     _val/=10;
                 }
             }
-            while(_str.size()&&_str.back()=='0')_str.pop_back();
-            if(!_str.size())_str.push_back('0');
-            if(_flag==-1)_str.push_back('-');
-            reverse(_str.begin(),_str.end());
-            return _str;
+            while(p<_str.data()+cap&&*p=='0')++p;
+            if(p==_str.data()+cap)return _flag==-1?"-0":"0";
+            if(_flag==-1)*--p='-';
+            return std::string(p,_str.data()+cap-p);
         }
         inline friend BigInt abs(const BigInt& _val)
         {
@@ -157,11 +225,12 @@ namespace MZLIB
             auto it=back_inserter(ans._dat);
             size_t sz=std::max(lhs._dat.size(),rhs._dat.size());
             lhs._dat.resize(sz+1,0),rhs._dat.resize(sz+1,0);
-            element_type lst=0;
+            uint64_t lst=0;
             for(auto itl=lhs._dat.begin(),itr=rhs._dat.begin();itl!=lhs._dat.end();++itl,++itr)
             {
-                *it=(*itl+*itr+lst)%_limit;
-                lst=(*itl+*itr+lst)/_limit;
+                uint64_t sum=uint64_t(*itl)+uint64_t(*itr)+lst;
+                *it=element_type(sum%_limit);
+                lst=sum/_limit;
             }
             ans.update();
             return ans;
@@ -176,37 +245,89 @@ namespace MZLIB
             auto it=back_inserter(ans._dat);
             size_t sz=std::max(lhs._dat.size(),rhs._dat.size());
             lhs._dat.resize(sz,0),rhs._dat.resize(sz,0);
-            element_type lst=0;
+            int64_t lst=0;
             for(auto itl=lhs._dat.begin(),itr=rhs._dat.begin();itl!=lhs._dat.end();++itl,++itr)
             {
-                *it=(*itl-*itr+lst+_limit)%_limit;
-                if(*itl-*itr+lst>=0)lst=0;
-                else lst=-((-*itl+*itr-lst)/_limit+!!((-*itl+*itr-lst)%_limit));
+                int64_t diff=int64_t(*itl)-int64_t(*itr)+lst;
+                *it=element_type(size_t((diff+_limit)%_limit));
+                if(diff>=0)lst=0;
+                else lst=-((-int64_t(*itl)+int64_t(*itr)-lst)/int64_t(_limit)+!!((-int64_t(*itl)+int64_t(*itr)-lst)%int64_t(_limit)));
             }
+            ans.update();
+            return ans;
+        }
+        static BigInt naive_mul(const BigInt& _lhs,const BigInt& _rhs)
+        {
+            const auto& a=_lhs._dat;
+            const auto& b=_rhs._dat;
+            BigInt ans=0;
+            ans._dat.resize(a.size()+b.size(),0);
+            for(size_t i=0;i<a.size();++i)
+            {
+                uint64_t carry=0;
+                for(size_t j=0;j<b.size()||carry;++j)
+                {
+                    uint64_t cur=ans._dat[i+j]+uint64_t(a[i])*(j<b.size()?b[j]:0)+carry;
+                    ans._dat[i+j]=element_type(cur%_limit);
+                    carry=cur/_limit;
+                }
+            }
+            ans.flag()=_lhs.flag()*_rhs.flag();
             ans.update();
             return ans;
         }
         inline friend BigInt operator*(const BigInt& _lhs,const BigInt& _rhs)
         {
+            if(_lhs._dat.size()<=32||_rhs._dat.size()<=32)
+                return naive_mul(_lhs,_rhs);
             size_t n=1;
             while(n<_lhs._dat.size()+_rhs._dat.size())n<<=1;
-            std::vector<typename FFT<fft_float>::complex> vc(_lhs._dat.begin(),_lhs._dat.end());
-            vc.resize(n);
-            for(size_t i=0;i<_rhs._dat.size();++i)vc[i].imag(_rhs._dat[i]);
-            FFT<fft_float>::fft(vc,1);
-            for(auto &x:vc)x=x*x;
-            FFT<fft_float>::fft(vc,-1);
+            static constexpr size_t MOD1=NTT1::mod,MOD2=NTT2::mod,MOD3=NTT3::mod;
+            static constexpr size_t INV12=208783132;
+            static constexpr size_t INV123=507030951;
+            __int128 max_coeff=__int128(n)*(_limit-1)*(_limit-1);
+            int num_moduli=1;
+            if(max_coeff>=MOD1)num_moduli=2;
+            if(num_moduli==2&&max_coeff>=uint64_t(MOD1)*MOD2)num_moduli=3;
+            std::vector<size_t> a(_lhs._dat.begin(),_lhs._dat.end());
+            std::vector<size_t> b(_rhs._dat.begin(),_rhs._dat.end());
+            std::vector<size_t> conv1,conv2,conv3;
+            if(num_moduli>=1)conv1=NTT1::convolve(a,b,n);
+            if(num_moduli>=2)conv2=NTT2::convolve(a,b,n);
+            if(num_moduli>=3)conv3=NTT3::convolve(a,b,n);
+            __int128 carry=0;
             BigInt ans=0;
-            ans._dat.assign(n,0);
             for(size_t i=0;i<n;++i)
             {
-                ans._dat[i]+=(element_type(std::round(vc[i].imag()/2)));
-                if(i<n-1)ans._dat[i+1]+=ans._dat[i]/_limit,ans._dat[i]%=_limit;
+                __int128 coeff;
+                if(num_moduli>=3)
+                {
+                    size_t v1=conv1[i],a2=conv2[i],a3=conv3[i];
+                    int64_t t1=(int64_t(a2)-int64_t(v1%MOD2))%int64_t(MOD2);
+                    if(t1<0)t1+=MOD2;
+                    size_t v2=(size_t(t1)*INV12)%MOD2;
+                    int64_t t2=int64_t(a3%MOD3)-int64_t(v1%MOD3)-int64_t((MOD1%MOD3)*(v2%MOD3)%MOD3);
+                    t2%=int64_t(MOD3);
+                    if(t2<0)t2+=MOD3;
+                    size_t v3=(size_t(t2)*INV123)%MOD3;
+                    coeff=v1+__int128(MOD1)*v2+__int128(MOD1)*MOD2*v3;
+                }
+                else if(num_moduli==2)
+                {
+                    size_t a1=conv1[i],a2=conv2[i];
+                    size_t t=(a2+MOD2-a1%MOD2)%MOD2;
+                    t=(t*INV12)%MOD2;
+                    coeff=a1+__int128(MOD1)*t;
+                }
+                else coeff=conv1[i];
+                coeff+=carry;
+                carry=coeff/_limit;
+                ans._dat.push_back(element_type(size_t(coeff%_limit)));
             }
-            while(ans._dat.back()>=_limit)
+            while(carry)
             {
-                element_type res=ans._dat.back()/_limit;
-                ans._dat.back()%=_limit,ans._dat.push_back(res);
+                ans._dat.push_back(element_type(size_t(carry%_limit)));
+                carry/=_limit;
             }
             ans.flag()=_lhs.flag()*_rhs.flag();
             ans.update();
@@ -218,25 +339,43 @@ namespace MZLIB
             size_t rhs=_rhs;
             for (; _bitcnt<=rhs; rhs-=_bitcnt)
                 ans._dat.push_back(0);
-            element_type sval=_pow10[rhs],lst=0;
+            size_t sval=_pow10[rhs],lst=0;
             auto it=std::back_inserter(ans._dat);
             for (auto itl=_lhs._dat.begin(); itl!=_lhs._dat.end();++itl)
             {
-                *it=((*itl)*sval+lst)%_limit;
-                lst =((*itl)*sval+lst)/_limit;
+                uint64_t prod=uint64_t(*itl)*sval+lst;
+                *it=element_type(prod%_limit);
+                lst=prod/_limit;
             }
-            while(lst)*it=lst%_limit, lst=lst/_limit;
+            while(lst){*it=element_type(lst%_limit); lst=lst/_limit;}
             ans.flag()=_lhs.flag();
             ans.update();
             return ans;
         }
         inline friend BigInt operator>>(const BigInt &_lhs, const size_t &_rhs)
         {
-            size_t shr=_rhs/_bitcnt+(_rhs%_bitcnt>0),shp=(_bitcnt-_rhs%_bitcnt)%_bitcnt;
-            BigInt ans=_lhs<<shp;
-            reverse(ans._dat.begin(),ans._dat.end());
-            while(ans._dat.size()&&shr--)ans._dat.pop_back();
-            reverse(ans._dat.begin(),ans._dat.end());
+            size_t limb_shift=_rhs/_bitcnt,bit_shift=_rhs%_bitcnt;
+            if(limb_shift>=_lhs._dat.size())return BigInt(0);
+            BigInt ans;
+            if(bit_shift==0)
+            {
+                ans._dat.assign(_lhs._dat.begin()+limb_shift,_lhs._dat.end());
+            }
+            else
+            {
+                size_t n=_lhs._dat.size()-limb_shift;
+                ans._dat.resize(n,0);
+                size_t sval=_pow10[bit_shift];
+                size_t nsval=_pow10[_bitcnt-bit_shift];
+                for(size_t i=0;i+1<n;++i)
+                {
+                    uint64_t cur=uint64_t(_lhs._dat[limb_shift+i])/sval
+                               +(uint64_t(_lhs._dat[limb_shift+i+1])%sval)*nsval;
+                    ans._dat[i]=element_type(cur);
+                }
+                ans._dat.back()=element_type(_lhs._dat.back()/sval);
+            }
+            ans._flag=_lhs._flag;
             ans.update();
             return ans;
         }
@@ -287,8 +426,56 @@ namespace MZLIB
         inline friend BigInt operator/(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).first;}
         inline friend BigInt operator%(const BigInt& _lhs, const BigInt& _rhs){return fast_divmod(_lhs,_rhs).second;}
 
-        inline BigInt& operator+=(const BigInt& _rhs){return (*this)=(*this)+_rhs;}
-        inline BigInt& operator-=(const BigInt& _rhs){return (*this)=(*this)-_rhs;}
+        inline BigInt& operator+=(const BigInt& _rhs)
+        {
+            if(_flag==_rhs._flag)
+            {
+                size_t sz=std::max(_dat.size(),_rhs._dat.size());
+                _dat.resize(sz+1,0);
+                uint64_t lst=0;
+                for(size_t i=0;i<sz;++i)
+                {
+                    uint64_t sum=uint64_t(_dat[i])+uint64_t(i<_rhs._dat.size()?_rhs._dat[i]:0)+lst;
+                    _dat[i]=element_type(sum%_limit);
+                    lst=sum/_limit;
+                }
+                if(lst)_dat.back()=element_type(lst);
+                else _dat.pop_back();
+                update();
+                return *this;
+            }
+            BigInt tmp=*this+_rhs;
+            _dat.swap(tmp._dat);_flag=tmp._flag;_size=tmp._size;
+            return *this;
+        }
+        inline BigInt& operator-=(const BigInt& _rhs)
+        {
+            if(_flag==_rhs._flag)
+            {
+                int c=compare(abs(*this),abs(_rhs));
+                if(c==0){_dat.clear();_flag=1;update();return *this;}
+                if(c<0)
+                {
+                    BigInt tmp=abs(_rhs)-abs(*this);
+                    _dat.swap(tmp._dat);_flag=-_flag;_size=tmp._size;
+                    return *this;
+                }
+                size_t sz=std::max(_dat.size(),_rhs._dat.size());
+                _dat.resize(sz,0);
+                int64_t lst=0;
+                for(size_t i=0;i<sz;++i)
+                {
+                    int64_t diff=int64_t(_dat[i])-int64_t(i<_rhs._dat.size()?_rhs._dat[i]:0)+lst;
+                    if(diff>=0){_dat[i]=element_type(diff);lst=0;}
+                    else{_dat[i]=element_type(diff+int64_t(_limit));lst=-1;}
+                }
+                update();
+                return *this;
+            }
+            BigInt tmp=*this-_rhs;
+            _dat.swap(tmp._dat);_flag=tmp._flag;_size=tmp._size;
+            return *this;
+        }
         inline BigInt& operator*=(const BigInt& _rhs){return (*this)=(*this)*_rhs;}
         inline BigInt& operator/=(const BigInt& _rhs){return (*this)=(*this)/_rhs;}
         inline BigInt& operator%=(const BigInt& _rhs){return (*this)=(*this)%_rhs;}
@@ -300,8 +487,9 @@ namespace MZLIB
         inline BigInt operator--(int){BigInt tmp=*this;return (*this)=(*this)-1,tmp;}
 
     protected:
-        static constexpr size_t _bitcnt=sizeof(element_type)/2;
-        static constexpr size_t _pow10[5]={1,size_t(1e1),size_t(1e2),size_t(1e3),size_t(1e4)};
+        static constexpr size_t _bitcnt=_BitCnt;
+        static_assert(_bitcnt>=1&&_bitcnt<=9,"_BitCnt must be in [1,9]");
+        static constexpr size_t _pow10[10]={1,size_t(1e1),size_t(1e2),size_t(1e3),size_t(1e4),size_t(1e5),size_t(1e6),size_t(1e7),size_t(1e8),size_t(1e9)};
         static constexpr size_t _limit=_pow10[_bitcnt];
         size_t _size;
         container_type _dat;
@@ -313,15 +501,18 @@ namespace MZLIB
             else
             {
                 _size=(_dat.size()-1)*_bitcnt;
-                element_type tmp = _dat.back();
-                while(tmp)++_size,tmp/=10;
+                unsigned u=(unsigned)_dat.back();
+                int bits=32-__builtin_clz(u);
+                size_t nd=1+((uint64_t(bits-1)*0x4D104D42u)>>32);
+                static constexpr unsigned p10[9]={10,100,1000,10000,100000,1000000,10000000,100000000,1000000000u};
+                if(nd<9&&u>=p10[nd])++nd;
+                _size+=nd;
             }
         }
         inline static int compare(const BigInt& _lhs,const BigInt& _rhs)
         {
             if(_lhs.flag()!=_rhs.flag())return _lhs.flag()>_rhs.flag()?1:-1;
             if(_lhs._dat.size()!=_rhs._dat.size())return _lhs.flag()*(_lhs._dat.size()>_rhs._dat.size()?1:-1);
-            int p=0;
             for(auto itl=_lhs._dat.rbegin(),itr=_rhs._dat.rbegin();itl!=_lhs._dat.rend();++itl,++itr)if(*itl!=*itr)return _lhs.flag()*(*itl>*itr?1:-1);
             return 0;
         }
